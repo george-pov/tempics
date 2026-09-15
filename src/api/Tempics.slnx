@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="TP.Application/TP.Application.csproj" />
+  <Project Path="TP.Avalonia/TP.Avalonia.csproj" />
+  <Project Path="TP.AzureFunctions/TP.AzureFunctions.csproj" />
+  <Project Path="TP.Api.Tests/TP.Api.Tests.csproj" />
+</Solution>

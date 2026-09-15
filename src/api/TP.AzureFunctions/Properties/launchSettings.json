@@ -1,6 +1,6 @@
 {
   "profiles": {
-    "Tempics.AzureFunctions": {
+    "TP.AzureFunctions": {
       "commandName": "Project",
       "commandLineArgs": "--port 7159",
       "launchBrowser": false

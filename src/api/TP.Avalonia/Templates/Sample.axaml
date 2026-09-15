@@ -1,0 +1,73 @@
+<Border xmlns="https://github.com/avaloniaui"
+        Width="1200"
+        Height="630"
+        Background="#101B2D">
+  <Grid ColumnDefinitions="720,480">
+    <Grid Margin="72,64,48,64" RowDefinitions="Auto,*,Auto">
+      <TextBlock Text="TEMPICS"
+                 FontFamily="fonts:Inter#Inter"
+                 FontSize="24"
+                 FontWeight="Bold"
+                 Foreground="#70E0C3" />
+      <StackPanel Grid.Row="1" VerticalAlignment="Center" Spacing="10">
+        <TextBlock Text="A template."
+                   FontFamily="fonts:Inter#Inter"
+                   FontSize="64"
+                   FontWeight="Bold"
+                   Foreground="#F6F8FC" />
+        <TextBlock Text="A sharp image."
+                   FontFamily="fonts:Inter#Inter"
+                   FontSize="64"
+                   FontWeight="Bold"
+                   Foreground="#F6F8FC" />
+        <TextBlock Text="Your ideas, ready to share."
+                   Margin="0,20,0,0"
+                   FontFamily="fonts:Inter#Inter"
+                   FontSize="26"
+                   Foreground="#AABCD3" />
+      </StackPanel>
+      <TextBlock Grid.Row="2"
+                 Text="SAMPLE  /  1200 x 630"
+                 FontFamily="fonts:Inter#Inter"
+                 FontSize="18"
+                 Foreground="#AABCD3" />
+    </Grid>
+    <Border Grid.Column="1" Background="#70E0C3">
+      <Grid Margin="48">
+        <Border Width="320"
+                Height="360"
+                Background="#F6F8FC"
+                CornerRadius="28">
+          <Grid Margin="28" RowDefinitions="*,Auto">
+            <Border Background="#3763E8" CornerRadius="16">
+              <Grid>
+                <Ellipse Width="124"
+                         Height="124"
+                         Fill="#F5BE59"
+                         HorizontalAlignment="Right"
+                         VerticalAlignment="Top"
+                         Margin="0,28,24,0" />
+                <Border Height="72"
+                        Background="#101B2D"
+                        VerticalAlignment="Bottom"
+                        CornerRadius="0,0,16,16" />
+              </Grid>
+            </Border>
+            <StackPanel Grid.Row="1" Margin="0,24,0,0" Spacing="12">
+              <Border Width="160"
+                      Height="14"
+                      HorizontalAlignment="Left"
+                      Background="#101B2D"
+                      CornerRadius="7" />
+              <Border Width="220"
+                      Height="10"
+                      HorizontalAlignment="Left"
+                      Background="#C8D3E0"
+                      CornerRadius="5" />
+            </StackPanel>
+          </Grid>
+        </Border>
+      </Grid>
+    </Border>
+  </Grid>
+</Border>

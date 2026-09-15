@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../TP.Application/TP.Application.csproj" />
+    <PackageReference Include="Avalonia" Version="12.1.2" />
+    <PackageReference Include="Avalonia.Headless" Version="12.1.2" />
+    <PackageReference Include="Avalonia.Skia" Version="12.1.2" />
+    <PackageReference Include="Avalonia.HarfBuzz" Version="12.1.2" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.2" />
+    <PackageReference Include="Avalonia.Markup.Xaml.Loader" Version="12.1.2" />
+  </ItemGroup>
+  <ItemGroup>
+    <AvaloniaXaml Remove="Templates/Sample.axaml" />
+    <EmbeddedResource Include="Templates/Sample.axaml" LogicalName="TP.Avalonia.Templates.Sample.axaml" />
+  </ItemGroup>
+</Project>
