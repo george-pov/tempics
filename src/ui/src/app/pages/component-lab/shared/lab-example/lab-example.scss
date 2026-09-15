@@ -1,0 +1,8 @@
+@use 'src/styles/variables' as *;
+
+.items-layout-inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $app-space-3;
+  align-items: center;
+}

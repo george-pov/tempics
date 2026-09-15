@@ -1,7 +1,9 @@
 # Manual Azure Development Deployment
 
-Run these PowerShell commands from the repository root. Provision infrastructure
-with Bicep, then publish the Function code separately with Azure CLI.
+Run these PowerShell commands from the repository root. The subscription Bicep
+deployment creates the resource group and the API/UI infrastructure. Application
+publication is separate: a later GitHub pipeline will upload the UI, and Function
+code is also deployed separately. Infrastructure deployment uploads no application.
 
 ## Resources And Configuration
 
@@ -9,6 +11,8 @@ with Bicep, then publish the Function code separately with Azure CLI.
 names and capacity. [`main.bicep`](../../bicep/main.bicep) creates the resource
 group; [`resources.bicep`](../../bicep/resources.bicep) creates its resources;
 [`storage-access.bicep`](../../bicep/storage-access.bicep) assigns storage access.
+[`ui-storage.bicep`](../../bicep/ui-storage.bicep) creates the UI storage account,
+enables static website hosting, and creates the private `$web` container.
 
 | Resource | Name |
 | --- | --- |
@@ -17,6 +21,8 @@ group; [`resources.bicep`](../../bicep/resources.bicep) creates its resources;
 | Flex Consumption plan | `asp-tempics-api-dev` |
 | Host and deployment storage | `sttempicsfuncdev` |
 | Private deployment container | `app-package-dev` |
+| UI static website storage | `sttempicsuidev` |
+| UI website container | `$web` |
 | Application Insights | `appi-tempics-api-dev` |
 | Log Analytics workspace | `log-tempics-dev` |
 
@@ -37,6 +43,23 @@ Bicep owns the Function app-settings collection. Add future required settings
 to the template before reapplying it. The template provisions infrastructure;
 publishing code is a separate command. The current sample endpoint uses
 Function-key authorization. It does not implement Entra user sign-in.
+
+UI storage uses Standard_LRS StorageV2, HTTPS/TLS 1.2, public website network
+access, and Azure login for management/uploads. Shared Key, ordinary anonymous
+blob access, and cross-tenant replication are disabled. The website serves
+public files independently of the container's private blob access level.
+Its index and error document names are `index.html` and `404.html`; Bicep creates
+neither file. See [UI hosting](ui-storage.md) for the publication contract.
+
+The UI publishing identity and its `$web` data role belong to the future GitHub
+deployment setup. The previous manual operator assignment is not recreated by
+this template. API CORS remains manually configured and is not owned by Bicep.
+
+The existing Application Insights smart-detection alert and its notification
+action group are not declared here. Incremental deployment leaves that alert
+unchanged; these templates do not promise to restore its notification setup
+after deletion. Alerting ownership must be decided separately before treating
+this as an exact backup of every manually/service-created resource in the group.
 
 ## Prerequisites
 
@@ -79,6 +102,9 @@ if ($LASTEXITCODE -ne 0) { throw 'Bicep compilation failed.' }
 az bicep build-params --file bicep/dev.bicepparam --stdout | Out-Null
 if ($LASTEXITCODE -ne 0) { throw 'Parameter compilation failed.' }
 
+az deployment sub validate --subscription $subscriptionId --location $location --name $deploymentName --template-file bicep/main.bicep --parameters bicep/dev.bicepparam --output none
+if ($LASTEXITCODE -ne 0) { throw 'Azure provider validation failed.' }
+
 az deployment sub what-if --subscription $subscriptionId --location $location --name $deploymentName --template-file bicep/main.bicep --parameters bicep/dev.bicepparam --result-format ResourceIdOnly
 if ($LASTEXITCODE -ne 0) { throw 'Infrastructure preview failed.' }
 ```
@@ -92,7 +118,10 @@ before applying.
 ## 2. Apply Infrastructure
 
 This command creates or updates Azure resources, including the resource group.
-There is no separate `az group create` step.
+There is no separate `az group create` step. Use this same command after an
+approved group deletion to recreate the declared infrastructure. Deletion is
+not part of this procedure. Incremental deployment preserves resources and blobs
+that the template does not own; it does not make an existing group empty.
 
 ```powershell
 az deployment sub create --subscription $subscriptionId --location $location --name $deploymentName --template-file bicep/main.bicep --parameters bicep/dev.bicepparam --query properties.provisioningState --output tsv
@@ -100,7 +129,19 @@ if ($LASTEXITCODE -ne 0) { throw 'Infrastructure deployment failed.' }
 
 az resource list --subscription $subscriptionId --resource-group $resourceGroup --query '[].{name:name,type:type}' --output table
 if ($LASTEXITCODE -ne 0) { throw 'Resource readback failed.' }
+
+az deployment sub show --subscription $subscriptionId --name $deploymentName --query properties.outputs --output json
+if ($LASTEXITCODE -ne 0) { throw 'Deployment output readback failed.' }
 ```
+
+Outputs include the resource group, Function name/URL, and UI storage name/website
+URL. Website settings are applied directly through the storage resource API;
+there is no post-deployment script or separate website-enable command.
+
+A freshly recreated website is empty and returns 404 until the application
+pipeline uploads it. Function code, stored data, UI files, generated config,
+manually set API CORS, and publishing-identity permissions are not recovered by
+infrastructure deployment. Reapply their separate setup/deployment steps.
 
 Allow time for managed identity permissions to propagate before publishing.
 The role assignments are created after the Function identity exists, so an

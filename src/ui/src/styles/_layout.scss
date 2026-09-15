@@ -1,0 +1,171 @@
+@use './variables' as *;
+
+$app-layout-breakpoints: (
+  sm: $app-breakpoint-sm,
+  md: $app-breakpoint-md,
+  lg: $app-breakpoint-lg,
+);
+
+$app-layout-spaces: (
+  0: $app-space-0,
+  1: $app-space-1,
+  2: $app-space-2,
+  3: $app-space-3,
+  4: $app-space-4,
+  6: $app-space-6,
+  8: $app-space-8,
+  12: $app-space-12,
+);
+
+.app-container {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: $app-container-max-width;
+  margin-inline: auto;
+  padding-inline: $app-container-padding;
+}
+
+@media (min-width: $app-breakpoint-md) {
+  .app-container {
+    padding-inline: $app-container-padding-md;
+  }
+}
+
+.app-grid {
+  box-sizing: border-box;
+  display: grid;
+  width: 100%;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: var(--app-grid-gap, #{$app-space-4});
+  align-items: start;
+
+  > * {
+    box-sizing: border-box;
+    min-width: 0;
+    grid-column: span 12 / span 12;
+  }
+}
+
+@for $span from 1 through 12 {
+  .app-col-#{$span} {
+    grid-column: span #{$span} / span #{$span};
+  }
+}
+
+@each $breakpoint-name, $breakpoint-value in $app-layout-breakpoints {
+  @media (min-width: $breakpoint-value) {
+    @for $span from 1 through 12 {
+      .app-col-#{$breakpoint-name}-#{$span} {
+        grid-column: span #{$span} / span #{$span};
+      }
+    }
+  }
+}
+
+.app-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: var(--app-actions-gap, #{$app-space-4});
+}
+
+.app-actions-end {
+  justify-content: flex-end;
+}
+
+@media (max-width: ($app-breakpoint-sm - 1px)) {
+  .app-actions-stack-mobile {
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+  }
+}
+
+.app-field-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--app-field-row-gap, #{$app-space-6});
+
+  > * {
+    max-inline-size: 100%;
+    flex: 0 0 auto;
+  }
+}
+
+@each $space-name, $space-value in $app-layout-spaces {
+  .app-gap-#{$space-name} {
+    gap: $space-value;
+  }
+}
+
+@each $space-name, $space-value in $app-layout-spaces {
+  .app-m-#{$space-name} {
+    margin: $space-value;
+  }
+
+  .app-mt-#{$space-name} {
+    margin-top: $space-value;
+  }
+
+  .app-mr-#{$space-name} {
+    margin-right: $space-value;
+  }
+
+  .app-mb-#{$space-name} {
+    margin-bottom: $space-value;
+  }
+
+  .app-ml-#{$space-name} {
+    margin-left: $space-value;
+  }
+
+  .app-mx-#{$space-name} {
+    margin-inline: $space-value;
+  }
+
+  .app-my-#{$space-name} {
+    margin-block: $space-value;
+  }
+
+  .app-p-#{$space-name} {
+    padding: $space-value;
+  }
+
+  .app-pt-#{$space-name} {
+    padding-top: $space-value;
+  }
+
+  .app-pr-#{$space-name} {
+    padding-right: $space-value;
+  }
+
+  .app-pb-#{$space-name} {
+    padding-bottom: $space-value;
+  }
+
+  .app-pl-#{$space-name} {
+    padding-left: $space-value;
+  }
+
+  .app-px-#{$space-name} {
+    padding-inline: $space-value;
+  }
+
+  .app-py-#{$space-name} {
+    padding-block: $space-value;
+  }
+}
+
+.app-mx-auto {
+  margin-inline: auto;
+}
+
+.app-ml-auto {
+  margin-left: auto;
+}
+
+.app-mr-auto {
+  margin-right: auto;
+}

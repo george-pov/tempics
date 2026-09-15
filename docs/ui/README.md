@@ -19,6 +19,10 @@ Durable documentation for the Angular frontend under `src/ui/`.
   [`development/naming-conventions.md`](development/naming-conventions.md)
 - Styling guidance: [`development/styling.md`](development/styling.md)
 - Testing guidance: [`development/testing.md`](development/testing.md)
+- Runtime configuration: [`development/configuration.md`](development/configuration.md)
+- Azure Storage hosting: [`../operations/ui-storage.md`](../operations/ui-storage.md)
+- Shared component visual workbench:
+  [`development/component-lab.md`](development/component-lab.md)
 - Build and test commands:
   [`development/build-and-test.md`](development/build-and-test.md)
 

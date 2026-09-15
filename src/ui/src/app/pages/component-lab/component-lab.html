@@ -1,0 +1,37 @@
+<main class="app-container app-py-8">
+  <h1>Component Lab</h1>
+
+  <div class="lab-menu">
+    <button type="button" matButton="outlined" [matMenuTriggerFor]="componentsMenu">
+      Components
+    </button>
+  </div>
+
+  <mat-menu #componentsMenu="matMenu">
+    @for (item of labItems; track item.label) {
+      <button type="button" mat-menu-item (click)="select(item)">{{ item.label }}</button>
+    }
+  </mat-menu>
+
+  <div class="app-grid">
+    <nav class="lab-nav app-col-md-3" aria-label="Components">
+      <mat-action-list>
+        @for (item of labItems; track item.label) {
+          <button
+            type="button"
+            mat-list-item
+            [activated]="item === selected()"
+            [attr.aria-current]="item === selected() ? 'true' : null"
+            (click)="select(item)"
+          >
+            {{ item.label }}
+          </button>
+        }
+      </mat-action-list>
+    </nav>
+
+    <div class="app-col-md-9">
+      <ng-container *ngComponentOutlet="selected().component" />
+    </div>
+  </div>
+</main>

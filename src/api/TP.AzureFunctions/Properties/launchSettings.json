@@ -2,7 +2,7 @@
   "profiles": {
     "TP.AzureFunctions": {
       "commandName": "Project",
-      "commandLineArgs": "--port 7159",
+      "commandLineArgs": "--port 7159 --cors http://localhost:4200",
       "launchBrowser": false
     }
   }

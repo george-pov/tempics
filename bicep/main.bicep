@@ -23,6 +23,11 @@ param functionPlanName string
 @maxLength(24)
 param storageName string
 
+@description('Globally unique UI website account, separate from Function storage.')
+@minLength(3)
+@maxLength(24)
+param uiStorageName string
+
 @minLength(1)
 @maxLength(24)
 param insightsName string
@@ -61,6 +66,7 @@ module resources './resources.bicep' = {
     functionAppName: functionAppName
     functionPlanName: functionPlanName
     storageName: storageName
+    uiStorageName: uiStorageName
     insightsName: insightsName
     workspaceName: workspaceName
     packageContainerName: 'app-package-${environmentName}'
@@ -72,3 +78,5 @@ module resources './resources.bicep' = {
 output resourceGroupName string = resourceGroup.name
 output functionAppName string = resources.outputs.functionAppName
 output functionAppUrl string = resources.outputs.functionAppUrl
+output uiStorageName string = resources.outputs.uiStorageName
+output uiWebsiteUrl string = resources.outputs.uiWebsiteUrl

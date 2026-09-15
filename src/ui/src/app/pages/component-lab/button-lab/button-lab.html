@@ -1,0 +1,24 @@
+<app-lab-page titleId="button-lab-title" title="Button">
+  <app-lab-example titleId="button-filled-title" title="Filled" itemsLayout="inline">
+    <app-button (click)="recordClick()">Click me</app-button>
+    <app-button (click)="recordClick()">Generate sample image</app-button>
+  </app-lab-example>
+
+  <app-lab-example titleId="button-disabled-title" title="Disabled" itemsLayout="inline">
+    <app-button [disabled]="true" (click)="recordClick()">Disabled button</app-button>
+  </app-lab-example>
+  <p role="status" aria-live="polite" aria-atomic="true">Clicks: {{ clicks() }}</p>
+
+  <app-lab-example titleId="button-types-title" title="Native button types">
+    <form (submit)="submit($event)" (reset)="reset()">
+      <label for="button-lab-label">Sample label</label>
+      <input id="button-lab-label" name="label" value="Sample" class="app-ml-2 app-mb-4" />
+      <div class="app-actions">
+        <app-button (click)="recordClick()">Button</app-button>
+        <app-button type="submit">Submit</app-button>
+        <app-button type="reset">Reset</app-button>
+      </div>
+    </form>
+    <p class="app-mt-4" role="status" aria-live="polite" aria-atomic="true">{{ formStatus() }}</p>
+  </app-lab-example>
+</app-lab-page>

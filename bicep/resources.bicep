@@ -5,6 +5,7 @@ param baseTags object
 param functionAppName string
 param functionPlanName string
 param storageName string
+param uiStorageName string
 param insightsName string
 param workspaceName string
 param packageContainerName string
@@ -18,6 +19,15 @@ param instanceMemoryMb int
 
 var apiTags = union(baseTags, { Component: 'Api' })
 var monitoringTags = union(baseTags, { Component: 'Monitoring' })
+
+module uiStorage './ui-storage.bicep' = {
+  name: 'ui-storage'
+  params: {
+    location: location
+    storageName: uiStorageName
+    tags: union(baseTags, { Component: 'Ui' })
+  }
+}
 
 resource storage 'Microsoft.Storage/storageAccounts@2025-08-01' = {
   name: storageName
@@ -162,3 +172,5 @@ module storageAccess './storage-access.bicep' = {
 
 output functionAppName string = functionApp.name
 output functionAppUrl string = 'https://${functionApp.properties.defaultHostName}'
+output uiStorageName string = uiStorage.outputs.storageName
+output uiWebsiteUrl string = uiStorage.outputs.websiteUrl

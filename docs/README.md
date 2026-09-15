@@ -33,6 +33,8 @@ artifacts out of this folder.
 
 - Manual development infrastructure and Function deployment:
   [`operations/azure-dev.md`](operations/azure-dev.md)
+- Manual UI storage website deployment:
+  [`operations/ui-storage.md`](operations/ui-storage.md)
 
 ## UI
 
@@ -44,5 +46,9 @@ artifacts out of this folder.
   [`ui/development/naming-conventions.md`](ui/development/naming-conventions.md)
 - UI styling guidance: [`ui/development/styling.md`](ui/development/styling.md)
 - UI testing guidance: [`ui/development/testing.md`](ui/development/testing.md)
+- UI runtime configuration:
+  [`ui/development/configuration.md`](ui/development/configuration.md)
+- UI component workbench:
+  [`ui/development/component-lab.md`](ui/development/component-lab.md)
 - UI build and test commands:
   [`ui/development/build-and-test.md`](ui/development/build-and-test.md)

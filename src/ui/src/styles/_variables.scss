@@ -1,0 +1,63 @@
+// Breakpoints
+$app-breakpoint-sm: 600px;
+$app-breakpoint-md: 768px;
+$app-breakpoint-lg: 1024px;
+
+// Spacing
+$app-space-0: 0;
+$app-space-1: 0.25rem;
+$app-space-2: 0.5rem;
+$app-space-3: 0.75rem;
+$app-space-4: 1rem;
+$app-space-6: 1.5rem;
+$app-space-8: 2rem;
+$app-space-12: 3rem;
+
+// Container
+$app-container-max-width: 72rem;
+$app-container-padding: $app-space-4;
+$app-container-padding-md: $app-space-8;
+
+// Color
+$app-color-background: #f5f7fb;
+$app-color-surface: #ffffff;
+$app-color-border: #d8dee9;
+$app-color-text: #172033;
+$app-color-muted: #5f6b7a;
+$app-color-action-primary: #245b7a;
+$app-color-action-accent: #c62828;
+$app-color-action-soft: #eaf3f8;
+$app-color-surface-hover: #eef2f7;
+$app-color-white: #ffffff;
+
+// Status colors for inline feedback (alerts, banners). Each variant pairs a
+// tinted surface and border with an accessible text color used for both the
+// message and its icon.
+$app-color-success-surface: #ecfdf3;
+$app-color-success-border: #abefc6;
+$app-color-success-text: #067647;
+
+$app-color-error-surface: #fff1f0;
+$app-color-error-border: #fda29b;
+$app-color-error-text: #b42318;
+
+$app-color-info-surface: #eff8ff;
+$app-color-info-border: #b2ddff;
+$app-color-info-text: #175cd3;
+
+$app-color-warning-surface: #fffaeb;
+$app-color-warning-border: #fedf89;
+$app-color-warning-text: #b54708;
+
+// Typography
+$app-font-body: Roboto, 'Helvetica Neue', Arial, sans-serif;
+$app-font-mono: ui-monospace, SFMono-Regular, Consolas, 'Liberation Mono', monospace;
+
+// Shape
+$app-border-default: 1px solid $app-color-border;
+$app-radius-sm: 4px;
+$app-radius-md: 8px;
+$app-radius-pill: 999px;
+
+// Shared component surfaces
+$app-panel-padding: 1.25rem;

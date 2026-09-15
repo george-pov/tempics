@@ -1,22 +1,28 @@
 {
   "name": "tempics",
   "version": "0.0.0",
+  "type": "module",
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
-    "test": "ng test"
+    "test": "ng test",
+    "config:write": "node scripts/write-config.mjs",
+    "test:config": "node --test scripts/write-config.test.mjs"
   },
   "private": true,
   "packageManager": "npm@12.0.1",
   "dependencies": {
+    "@angular/cdk": "22.1.6",
     "@angular/common": "^22.0.0",
     "@angular/compiler": "^22.0.0",
     "@angular/core": "^22.0.0",
     "@angular/forms": "^22.0.0",
+    "@angular/material": "22.1.6",
     "@angular/platform-browser": "^22.0.0",
     "@angular/router": "^22.0.0",
+    "@cfworker/json-schema": "4.1.1",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0"
   },

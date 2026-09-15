@@ -38,6 +38,13 @@ than Angular or browser implementation details.
 
 ## Browser Tests
 
+Use [Component Lab](component-lab.md) at `/component-lab` for manual visual and
+interaction checks of shared components. Button lab covers filled and disabled
+states, activation feedback, and native form button types. Inspect wide and
+narrow layouts, browser zoom, keyboard focus, and Enter/Space activation.
+Keep behavior assertions in automated tests; screenshots from the workbench
+are manual evidence, not an automated regression suite.
+
 No end-to-end test runner is currently configured. Add one through an approved
 feature when a critical cross-page flow requires browser-level proof. Keep
 deployed environment tests separate and require explicit authorization before

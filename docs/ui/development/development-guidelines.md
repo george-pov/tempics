@@ -6,7 +6,8 @@ Development guidance for the Tempics Angular frontend.
 
 - Framework: Angular 22 with standalone components.
 - Language: TypeScript with strict compiler and Angular template checks.
-- Styling: component-scoped SCSS with a small global entry point.
+- Styling: component-scoped SCSS, shared Sass tokens and mixins, global layout
+  utilities, and a single Angular Material Sass theme.
 - Package manager: npm.
 - Unit-test runtime: Angular unit-test builder with Vitest and jsdom.
 - Principles: clear ownership, typed contracts, accessibility, predictable
@@ -95,6 +96,14 @@ rules decide when local guidance is more specific.
 - Never place secrets in browser configuration, bundles, source, or logs.
 - Keep API requests, responses, and mapping typed and update them with the
   backend contract.
+
+## Shared Component Workbench
+
+Keep representative shared component states in
+[Component Lab](component-lab.md). Add or update the corresponding lab when a
+shared component's supported inputs or appearance change. Use the real shared
+component and local fixtures, and verify keyboard interaction and responsive
+layout alongside automated tests.
 
 ## Dependencies
 
