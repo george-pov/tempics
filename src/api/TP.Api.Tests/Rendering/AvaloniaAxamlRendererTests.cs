@@ -7,6 +7,23 @@ namespace TP.Api.Tests.Rendering;
 public sealed class AvaloniaAxamlRendererTests(RenderFixture fixture)
 {
     [Fact]
+    public async Task RenderAsync_Font_IsInter()
+    {
+        var axaml = await fixture.Source.LoadAsync(TestContext.Current.CancellationToken);
+        var result = await fixture.Renderer.RenderAsync(axaml, TestContext.Current.CancellationToken)
+            .WaitAsync(RenderFixture.Timeout, TestContext.Current.CancellationToken);
+
+        PngAssertions.IsExpectedPng(result.PngBytes);
+        var usesInter = await fixture.Host.DispatchAsync(
+            () => global::Avalonia.Media.FontManager.Current.DefaultFontFamily.Equals(
+                new global::Avalonia.Media.FontFamily("fonts:Inter#Inter")),
+            TestContext.Current.CancellationToken);
+
+        // An OS-selected default may not exist on the Azure Linux host.
+        Assert.True(usesInter, "The render host must use its bundled Inter font as the default.");
+    }
+
+    [Fact]
     public async Task RenderAsync_SampleTemplate_ReturnsExpectedPng()
     {
         var axaml = await fixture.Source.LoadAsync(TestContext.Current.CancellationToken);

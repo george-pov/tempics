@@ -18,6 +18,10 @@
     <PackageReference Include="Azure.Monitor.OpenTelemetry.Exporter" Version="1.7.0" />
     <PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.Http.AspNetCore" Version="2.1.0" />
     <PackageReference Include="Microsoft.Azure.Functions.Worker.Sdk" Version="2.0.7" />
+    <!-- Use bundled Inter fonts without requiring fontconfig on the Linux host.
+         Keep the native version aligned with Avalonia's SkiaSharp dependency. -->
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="3.119.4" ExcludeAssets="all" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="3.119.4" />
   </ItemGroup>
 
 </Project>

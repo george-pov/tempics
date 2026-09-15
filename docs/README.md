@@ -29,6 +29,11 @@ artifacts out of this folder.
 - API build and test commands:
   [`api/development/build-and-test.md`](api/development/build-and-test.md)
 
+## Operations
+
+- Manual development infrastructure and Function deployment:
+  [`operations/azure-dev.md`](operations/azure-dev.md)
+
 ## UI
 
 - UI documentation index: [`ui/README.md`](ui/README.md)

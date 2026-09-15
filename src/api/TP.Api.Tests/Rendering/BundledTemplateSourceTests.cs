@@ -28,6 +28,15 @@ public sealed class BundledTemplateSourceTests(RenderFixture fixture)
         Assert.Equal(1200d, (double?)root.Attribute("Width"));
         Assert.Equal(630d, (double?)root.Attribute("Height"));
 
+        const string backgroundUri = "avares://TP.Avalonia/Templates/Background.png";
+        var background = Assert.Single(root.Descendants(root.Name.Namespace + "ImageBrush"));
+        Assert.Equal(backgroundUri, (string?)background.Attribute("Source"));
+        var backgroundExists = await fixture.Host.DispatchAsync(
+            () => global::Avalonia.Platform.AssetLoader.Exists(new Uri(backgroundUri)),
+            TestContext.Current.CancellationToken)
+            .WaitAsync(RenderFixture.Timeout, TestContext.Current.CancellationToken);
+        Assert.True(backgroundExists);
+
         string[] blocked = ["http:", "https:", "file:", "avares:", "resm:", "{Binding", "{StaticResource", "{DynamicResource"];
         foreach (var element in root.DescendantsAndSelf())
         {
@@ -35,6 +44,12 @@ public sealed class BundledTemplateSourceTests(RenderFixture fixture)
             foreach (var attribute in element.Attributes().Where(attribute => !attribute.IsNamespaceDeclaration))
             {
                 Assert.NotEqual("Class", attribute.Name.LocalName);
+                if (element == background && attribute.Name.LocalName == "Source")
+                {
+                    // Only this fixed, assembly-bundled image URI is trusted.
+                    continue;
+                }
+
                 foreach (var value in blocked)
                 {
                     Assert.DoesNotContain(value, attribute.Value, StringComparison.OrdinalIgnoreCase);

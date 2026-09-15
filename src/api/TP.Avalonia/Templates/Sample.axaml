@@ -3,6 +3,10 @@
         Height="630"
         Background="#101B2D">
   <Grid ColumnDefinitions="720,480">
+    <Grid.Background>
+      <ImageBrush Source="avares://TP.Avalonia/Templates/Background.png"
+                  Stretch="UniformToFill" />
+    </Grid.Background>
     <Grid Margin="72,64,48,64" RowDefinitions="Auto,*,Auto">
       <TextBlock Text="TEMPICS"
                  FontFamily="fonts:Inter#Inter"

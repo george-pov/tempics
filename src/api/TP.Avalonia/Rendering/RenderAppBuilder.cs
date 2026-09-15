@@ -10,6 +10,10 @@ public static class RenderAppBuilder
             .UseSkia()
             .UseHarfBuzz()
             .WithInterFont()
+            .With(new global::Avalonia.Media.FontManagerOptions
+            {
+                DefaultFamilyName = "fonts:Inter#Inter"
+            })
             .UseHeadless(new AvaloniaHeadlessPlatformOptions
             {
                 UseHeadlessDrawing = false

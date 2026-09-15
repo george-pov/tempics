@@ -16,5 +16,6 @@
   <ItemGroup>
     <AvaloniaXaml Remove="Templates/Sample.axaml" />
     <EmbeddedResource Include="Templates/Sample.axaml" LogicalName="TP.Avalonia.Templates.Sample.axaml" />
+    <AvaloniaResource Include="Templates/Background.png" />
   </ItemGroup>
 </Project>
