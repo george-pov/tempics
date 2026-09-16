@@ -48,6 +48,7 @@ $module = Import-Module (Join-Path $PSScriptRoot 'DevSetup.psm1') -Force -PassTh
             'Read deployment identity' { $script:Identity; break }
             'Read Function metadata' { $script:App; break }
             'Read repository' { $script:Repo; break }
+            'Read OIDC subject' { $script:Oidc; break }
             'Read environments' { ,@(@{ environments = $(if ($script:Exists) { @(@{ name = 'dev' }) } else { @() }) }); break }
             'Read dev policy' { @{ deployment_branch_policy = $script:Policy; protection_rules = $script:Reviewers }; break }
             'Read branch rules' { ,@(@{ branch_policies = $script:Rules }); break }
@@ -82,6 +83,7 @@ $module = Import-Module (Join-Path $PSScriptRoot 'DevSetup.psm1') -Force -PassTh
         $script:App = @{ id = "$scope/providers/Microsoft.Web/sites/func-tempics-api-dev"; kind = 'functionapp,linux'; sku = 'FlexConsumption';
             host = 'func-tempics-api-dev.azurewebsites.net'; runtime = @{ name = 'dotnet-isolated'; version = '10.0' } }
         $script:Repo = @{ full_name = 'george-pov/tempics'; default_branch = 'main' }
+        $script:Oidc = @{ use_default = $true; use_immutable_subject = $true; sub_claim_prefix = 'repo:george-pov@287842525/tempics@1368115642' }
         $script:Exists = $false
         $script:Policy = @{ protected_branches = $false; custom_branch_policies = $true }
         $script:Rules = @()
@@ -106,6 +108,8 @@ $module = Import-Module (Join-Path $PSScriptRoot 'DevSetup.psm1') -Force -PassTh
         { $script:Group.location = 'eastus' },
         { $script:Repo.full_name = 'other/tempics' },
         { $script:Repo.default_branch = 'other' }
+        { $script:Oidc.sub_claim_prefix = 'repo:other@1/tempics@2' },
+        { $script:Oidc.use_immutable_subject = $false }
     )) {
         Reset; & $mutate
         Reject { Get-DevContext -SubscriptionId $script:Sub }

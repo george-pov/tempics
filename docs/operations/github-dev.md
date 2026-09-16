@@ -34,7 +34,11 @@ It does not change runtime identities, storage roles, app settings, or CORS.
 
 Federation accepts issuer `https://token.actions.githubusercontent.com`, audience
 `api://AzureADTokenExchange`, and subject
-`repo:george-pov/tempics:environment:dev`. The Environment branch policy and
+`repo:george-pov@287842525/tempics@1368115642:environment:dev`.
+The immutable owner/repository IDs come from GitHub's OIDC configuration:
+`gh api repos/george-pov/tempics/actions/oidc/customization/sub`.
+Setup verifies this prefix; name-only subjects do not match this repository.
+The Environment branch policy and
 workflow ref check separately restrict execution to `main`.
 
 ```powershell
@@ -200,3 +204,4 @@ checks do not prove hosted OIDC/RBAC or Linux rendering on the GitHub runner.
 - [Functions action and Flex deployment inputs](https://github.com/Azure/functions-action)
 - [GitHub Environment branch policies](https://docs.github.com/en/rest/deployments/branch-policies)
 - [GitHub OIDC with Azure](https://docs.github.com/en/actions/how-tos/secure-your-work/security-harden-deployments/oidc-in-azure)
+- [Immutable OIDC subject reference](https://docs.github.com/en/actions/reference/security/oidc#immutable-subject-claims)

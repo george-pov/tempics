@@ -112,6 +112,11 @@ function Get-DevContext {
     }
     $repo = Invoke-DevCli gh @('api', "repos/$Repository", '--jq', '{full_name,default_branch}') -Operation 'Read repository' | ConvertFrom-Json
     if ($repo.full_name -cne $Repository -or $repo.default_branch -cne 'main') { throw 'Repository mismatch.' }
+    $oidc = Invoke-DevCli gh @('api', "repos/$Repository/actions/oidc/customization/sub") -Operation 'Read OIDC subject' | ConvertFrom-Json
+    if ($oidc.use_default -ne $true -or $oidc.use_immutable_subject -ne $true -or
+        $oidc.sub_claim_prefix -cne 'repo:george-pov@287842525/tempics@1368115642') {
+        throw 'Repository OIDC subject mismatch; review the federation before setup.'
+    }
     return @{
         Repository = $Repository; EnvironmentName = $EnvironmentName
         SubscriptionId = $SubscriptionId; ResourceGroup = $ResourceGroup; FunctionAppName = $FunctionAppName
