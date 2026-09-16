@@ -1,14 +1,26 @@
-name: Deploy dev UI
+name: Deploy UI
+run-name: Deploy UI to ${{ inputs.environment || 'dev' }}
 
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
+    inputs:
+      environment:
+        description: Target environment
+        type: choice
+        required: true
+        default: dev
+        options:
+          - dev
+          - prod
 
 permissions:
   contents: read
   id-token: write
 
 concurrency:
-  group: tempics-ui-dev
+  group: tempics-ui-${{ inputs.environment || 'dev' }}
   cancel-in-progress: false
 
 jobs:
@@ -16,7 +28,7 @@ jobs:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     timeout-minutes: 5
-    environment: dev
+    environment: ${{ inputs.environment || 'dev' }}
     defaults:
       run:
         working-directory: src/ui

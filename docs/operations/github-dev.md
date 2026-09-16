@@ -1,16 +1,24 @@
-# GitHub Development Deployment
+# GitHub Deployment
 
 The [API workflow](../../.github/workflows/deploy-api.yml) publishes the .NET app
-and deploys it to `func-tempics-api-dev`. The
+and deploys it to the selected Environment's `AZURE_FUNCTION_APP`. The
 [UI workflow](../../.github/workflows/deploy-ui.yml) builds Angular, writes public
-runtime configuration, and uploads it to `sttempicsuidev/$web`.
+runtime configuration, and uploads it to that Environment's `AZURE_UI_STORAGE`
+account and `$web` container.
 
-Each workflow has one job, runs manually from `main`, uses GitHub Environment
-`dev`, and signs in to Azure with OIDC. Each job has a five-minute limit,
+Each workflow has one job and deploys to `dev` automatically on pushes to `main`.
+Manual runs from `main` accept an `environment` choice of `dev` (default) or
+`prod`. Each job uses the selected GitHub Environment's
+variables and signs in to Azure with OIDC. Each job has a five-minute limit,
 including build and deployment. Actions use major-version tags.
 A successful Azure deployment action or upload command is the deployment result.
 Neither workflow runs tests, artifact/hash checks, HTTP probes, or browser checks.
 Infrastructure provisioning remains manual.
+
+Dev targets `func-tempics-api-dev` and `sttempicsuidev`. The GitHub `prod`
+Environment is an empty placeholder with no variables or secrets. Production
+Azure resources, OIDC federation, permissions, and Environment variables must
+be configured before it can deploy. The access templates below configure dev.
 
 ## Prerequisites
 
@@ -92,11 +100,12 @@ require readback and bounded waiting, not broader roles or weaker trust.
 
 ## 3. Configure The GitHub Environment
 
-Configure the repository's `dev` Environment directly in GitHub. Restrict its
+Configure the target Environment directly in GitHub when its Azure resources
+are ready. Restrict its
 deployment branches to `main` and set these Environment variables from the
 Azure resources:
 
-| Variable | Source |
+| Variable | Source (dev example) |
 | --- | --- |
 | `AZURE_CLIENT_ID` | `id-tempics-gh-dev` client ID |
 | `AZURE_TENANT_ID` | Identity tenant, matching selected subscription |
@@ -120,15 +129,18 @@ longer consumed by the workflows.
 
 ## 4. Deploy
 
-After the workflow changes are on `main`, dispatch the desired application:
+Pushing to `main` automatically deploys both applications to `dev`.
+To dispatch either application manually:
 
 ```powershell
-gh workflow run deploy-api.yml --repo george-pov/tempics --ref main
-gh workflow run deploy-ui.yml --repo george-pov/tempics --ref main
+gh workflow run deploy-api.yml --repo george-pov/tempics --ref main -f environment=dev
+gh workflow run deploy-ui.yml --repo george-pov/tempics --ref main -f environment=dev
 ```
 
-Run only the workflow for the application you intend to deploy. Follow its
-result in GitHub Actions. Each application has its own concurrency group;
+Select `prod` instead when production is configured. Both environments use the
+same build and deployment steps. Run only the workflow for the application you
+intend to deploy. Follow its result in GitHub Actions. Each application and
+environment has its own concurrency group;
 in-progress deployments are not cancelled by later dispatches.
 
 The API uses .NET 10 and `dotnet publish` for Linux x64. The Functions action

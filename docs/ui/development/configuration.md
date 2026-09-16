@@ -100,7 +100,7 @@ address without recompilation.
 Browser configuration is public. Never include client secrets, Function keys,
 access tokens, connection strings, or deployment credentials.
 
-The [GitHub UI workflow](../../operations/github-dev.md#4-deploy) writes the dev
+The [GitHub UI workflow](../../operations/github-dev.md#4-deploy) writes the selected
 Environment's `UI_APP_CONFIG_JSON` directly to `config.json` after the build, then
 uploads that directory. It relies on Azure upload success without running tests
 or hosted checks. JSON validation happens in the browser at startup.
