@@ -47,8 +47,15 @@ jobs:
       - name: Write public configuration
         env:
           UI_APP_CONFIG_JSON: ${{ vars.UI_APP_CONFIG_JSON }}
+          AZURE_FUNCTION_KEY: ${{ secrets.AZURE_FUNCTION_KEY }}
         run: |
-          printf '%s\n' "$UI_APP_CONFIG_JSON" > dist/tempics/browser/config.json
+          node <<'NODE'
+          const fs = require('node:fs');
+          const config = JSON.parse(process.env.UI_APP_CONFIG_JSON);
+          if (!process.env.AZURE_FUNCTION_KEY) throw new Error('Missing AZURE_FUNCTION_KEY');
+          config.functionKey = process.env.AZURE_FUNCTION_KEY;
+          fs.writeFileSync('dist/tempics/browser/config.json', JSON.stringify(config) + '\n');
+          NODE
           cp scripts/404.html dist/tempics/browser/404.html
       - uses: azure/login@v3
         with:

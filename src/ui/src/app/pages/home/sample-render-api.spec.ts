@@ -5,6 +5,33 @@ import { SampleRenderApi } from './sample-render-api';
 import { CONFIG } from '../../shared/config/config-token';
 
 describe('SampleRenderApi', () => {
+  it('sends the configured Function key in the header without putting it in the URL', () => {
+    const config = {
+      environment: 'dev',
+      apiBaseUrl: 'https://dev.example.test/api',
+      functionKey: 'fixture-function-key==',
+    };
+    TestBed.configureTestingModule({
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        { provide: CONFIG, useValue: config },
+      ],
+    });
+    const http = TestBed.inject(HttpTestingController);
+    TestBed.inject(SampleRenderApi).renderSample().subscribe();
+
+    const request = http.expectOne(`${config.apiBaseUrl}/renders/sample`);
+    expect(request.request.method).toBe('POST');
+    expect(request.request.headers.get('x-functions-key')).toBe(config.functionKey);
+    expect(request.request.headers.has('Authorization')).toBe(false);
+    expect(request.request.urlWithParams).not.toContain(config.functionKey);
+    expect(request.request.body).toBeNull();
+    expect(request.request.responseType).toBe('blob');
+    request.flush(new Blob(['sample'], { type: 'image/png' }));
+    http.verify();
+  });
+
   it.each([
     { environment: 'local', apiBaseUrl: 'http://localhost:7159/api' },
     { environment: 'dev', apiBaseUrl: 'https://dev.example.test/api' },

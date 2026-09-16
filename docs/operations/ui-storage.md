@@ -23,8 +23,9 @@ environment URLs in local configuration or deployment notes.
 - Uploads use Azure login. The operator's Storage Blob Data Contributor role is
   scoped to `$web`; resource administration remains separate.
 - API calls use the absolute URL in runtime JSON. CORS rules are configured
-  manually on the API. Hosting these files does not implement Entra sign-in or
-  authorize calls to the Function-key-protected sample endpoint.
+  manually on the API, including support for the `x-functions-key` header.
+  The deployed JSON includes a public Function key, which the UI sends to the
+  sample endpoint. Hosting these files does not implement Entra sign-in.
 
 ## Provision Infrastructure With Bicep
 
@@ -48,7 +49,8 @@ The [GitHub UI workflow](github-dev.md#4-deploy) owns
 repeatable UI publication. It implements this sequence:
 
 1. Install locked dependencies and build the UI.
-2. Write `UI_APP_CONFIG_JSON` directly to `config.json` in the compiled output.
+2. Merge `AZURE_FUNCTION_KEY` into `UI_APP_CONFIG_JSON` as `functionKey` and
+   write `config.json` in the compiled output.
 3. Include `404.html` and the current route entry copies for Component Lab.
 4. Upload the compiled directory to `$web` using Azure login and a scoped identity.
 5. Let Azure CLI infer asset content types and explicitly set `text/html` for
@@ -66,8 +68,8 @@ publication is not embedded in Bicep or restored during group recreation.
 Bicep does not build Angular, generate runtime JSON, upload entry pages/assets,
 set blob content properties, configure GitHub, or change API CORS. See
 [runtime configuration](../ui/development/configuration.md) for the shared
-configuration contract. Keep deployment artifacts free of local settings,
-source maps, Function keys, and tokens.
+configuration contract. The injected Function key is deliberately public;
+keep local settings, source maps, other secrets, and tokens out of uploads.
 
 ## Verify And Recover
 

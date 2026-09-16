@@ -114,7 +114,7 @@ Azure resources:
 | `UI_APP_CONFIG_JSON` | Complete public runtime JSON, shown below |
 | `AZURE_UI_STORAGE` | `sttempicsuidev` |
 
-Set `UI_APP_CONFIG_JSON` to the complete configuration for the target environment:
+Set `UI_APP_CONFIG_JSON` to the base configuration for the target environment:
 
 ```json
 {
@@ -126,6 +126,12 @@ Set `UI_APP_CONFIG_JSON` to the complete configuration for the target environmen
 The workflows require these six variables. Previously configured
 `AZURE_RESOURCE_GROUP`, `TP_ENV`, `TP_API_URL`, and `TP_UI_URL` variables are no
 longer consumed by the workflows.
+
+UI deployment also requires Environment secret `AZURE_FUNCTION_KEY`, containing
+the existing sample Function key. Deployment adds it as `functionKey` to the
+public `config.json`; site visitors can read and reuse that key. Keep the value
+out of source and logs. The empty prod Environment needs its own settings and
+key before deployment.
 
 ## 4. Deploy
 
@@ -148,18 +154,20 @@ packages the published directory and deploys it with remote build disabled.
 It does not run solution tests or call the protected sample endpoint.
 
 The UI uses Node 24 and npm 12 with `npm ci` and the production build. The
-workflow writes `UI_APP_CONFIG_JSON` directly to `config.json` with `printf`.
+workflow parses `UI_APP_CONFIG_JSON`, adds `functionKey` from
+`AZURE_FUNCTION_KEY`, and writes `config.json` with inline Node code.
 It also copies the standalone `404.html` error page.
 Azure CLI uploads the directory to `$web` with Azure login, overwrite enabled,
 and `Cache-Control: no-store`; it infers asset MIME types from their extensions.
 Two explicit HTML uploads publish the same entry page at `component-lab` and
 `component-lab/index.html`. See the [Storage hosting contract](ui-storage.md).
 
-Neither workflow uses `AZURE_FUNCTION_KEY`. An existing Environment secret is
-left in place; no key retrieval or transfer is needed for deployment. Browser
-API authentication and manual CORS configuration remain separate responsibilities.
+Only the UI configuration step receives `AZURE_FUNCTION_KEY`; build and API
+deployment do not use it. The frontend sends it as `x-functions-key` on sample
+render requests. Manual API CORS must allow the UI origin and that header.
+User authentication remains a separate responsibility.
 The browser's runtime config validator still enforces the public JSON contract
-at startup; deployment does not parse or validate the supplied JSON.
+at startup; deployment parses JSON for injection without running contract tests.
 
 ## Recovery
 

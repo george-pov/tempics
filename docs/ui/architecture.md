@@ -86,8 +86,10 @@ configuration is unavailable or invalid; every route requires it.
 
 API services make direct requests to the configured absolute `apiBaseUrl`.
 `SampleRenderApi` appends `/renders/sample` and preserves its empty POST/PNG Blob
-contract. Local Core Tools must allow the UI's exact CORS origin. Browser
-configuration must never contain secrets. See
+contract. If runtime settings contain `functionKey`, this request sends it as
+`x-functions-key`. Deployment injects that shared key into public configuration;
+it is visible to visitors and does not establish user identity. API CORS must
+allow the UI's exact origin and this header. See
 [runtime configuration](development/configuration.md) for validation, local
 setup, packaging, and the separate hosted CORS/authentication requirements.
 

@@ -14,7 +14,10 @@ startup configuration.
 }
 ```
 
-These are the only accepted fields. `environment` is exactly `local`, `dev`, or
+`environment` and `apiBaseUrl` are required. An optional `functionKey` supplies
+the sample API's `x-functions-key` header. It must be a nonempty string of key
+characters (letters, digits, `_`, `+`, `/`, `=`, or `-`). Other fields are rejected.
+`environment` is exactly `local`, `dev`, or
 `prod`. `apiBaseUrl` is an absolute HTTPS URL including the API prefix. Local
 configuration also permits HTTP on `localhost`, `127.0.0.1`, or `[::1]`.
 Hosted environments reject loopback addresses, including equivalent canonical
@@ -24,7 +27,9 @@ Validation rejects missing/unknown fields, blank values, relative URLs,
 whitespace, backslashes, credentials, query strings, fragments, and unsupported
 schemes. Trailing slashes are removed while preserving the API path prefix.
 `SampleRenderApi` appends `/renders/sample` and sends an empty POST for a PNG
-Blob without Function keys, Authorization headers, or credentialed requests.
+Blob. When `functionKey` is present, it sends that value as `x-functions-key`.
+When absent, it omits the header, preserving local Core Tools use. It does not
+send an Authorization header or enable cookie credentials.
 
 The browser uses `config.schema.json` and
 `validateConfig` under `src/ui/src/app/shared/config/`. The schema validator is
@@ -70,12 +75,12 @@ are not displayed. Settings are loaded once per page load.
 Production builds exclude `config.json` and `config.json.*` even when local
 settings exist. Both hosted dev and prod use the optimized production build.
 
-Store the complete public JSON in the GitHub Environment variable
-`UI_APP_CONFIG_JSON`. The workflow writes it directly into the build output:
-
-```bash
-printf '%s\n' "$UI_APP_CONFIG_JSON" > dist/tempics/browser/config.json
-```
+Store `environment` and `apiBaseUrl` as JSON in the GitHub Environment variable
+`UI_APP_CONFIG_JSON`. Set the existing sample Function key as Environment secret
+`AZURE_FUNCTION_KEY`. The workflow merges it into JSON as `functionKey` using
+inline Node code and writes `config.json` after the build. A missing secret fails
+that step. The key is passed through the process environment, never a shell
+argument or log message.
 
 For a local copy of the production build, from `src/ui/`:
 
@@ -97,19 +102,24 @@ address without recompilation.
 
 ## Hosting And Authentication Follow-Up
 
-Browser configuration is public. Never include client secrets, Function keys,
-access tokens, connection strings, or deployment credentials.
+Browser configuration is public. The deployment deliberately exposes the
+injected Function key to site visitors, who can reuse it outside the UI.
+This is shared-key access, not per-user authentication. Do not add other secrets,
+access tokens, connection strings, or deployment credentials to the file.
 
 The [GitHub UI workflow](../../operations/github-dev.md#4-deploy) writes the selected
-Environment's `UI_APP_CONFIG_JSON` directly to `config.json` after the build, then
+Environment's `UI_APP_CONFIG_JSON` plus its `AZURE_FUNCTION_KEY` secret to
+`config.json` after the build, then
 uploads that directory. It relies on Azure upload success without running tests
-or hosted checks. JSON validation happens in the browser at startup.
+or hosted checks. The workflow parses JSON for injection; contract validation
+happens in the browser at startup.
 A valid URL can still target the wrong environment.
 
 Hosting must serve configuration as JSON with `Cache-Control: no-store`, avoid
 SPA fallback and redirects for missing config, and deliver a compatible
 application/config pair. Test these rules on the chosen host. Configure hosted
-API CORS and authentication separately; local CORS or mocked browser routing
+API CORS to allow the UI origin and the `x-functions-key` request header.
+Configure user authentication separately; local CORS or mocked browser routing
 does not prove hosted access. Preserve compatible pairs for rollback.
 
 Add `auth.clientId`, `auth.authority`, `auth.redirectUri`,

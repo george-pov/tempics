@@ -1,6 +1,28 @@
 import { validateConfig } from './validate-config';
 
 describe('validateConfig', () => {
+  it('preserves the optional Function key in frozen runtime settings', () => {
+    const config = validateConfig({
+      environment: 'dev',
+      apiBaseUrl: 'https://dev.example.test/api/',
+      functionKey: 'fixture-function-key==',
+    });
+    expect(config.apiBaseUrl).toBe('https://dev.example.test/api');
+    expect(config.functionKey).toBe('fixture-function-key==');
+    expect(Object.isFrozen(config)).toBe(true);
+  });
+
+  it.each(['', ' ', 'key\r\ninjected-header', null, 123])(
+    'rejects invalid Function key values without exposing them',
+    (functionKey) => {
+      expect(() => validateConfig({
+        environment: 'dev',
+        apiBaseUrl: 'https://dev.example.test/api',
+        functionKey,
+      })).toThrow('Invalid configuration shape');
+    },
+  );
+
   it.each([
     ['local', 'http://localhost:7159/api///', 'http://localhost:7159/api'],
     ['local', 'http://127.0.0.1:7159/api', 'http://127.0.0.1:7159/api'],

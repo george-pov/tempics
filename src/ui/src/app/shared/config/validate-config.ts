@@ -10,7 +10,7 @@ export function validateConfig(value: unknown): RuntimeConfig {
     throw new Error('Invalid configuration shape');
   }
 
-  const { environment, apiBaseUrl } = value as RuntimeConfig;
+  const { environment, apiBaseUrl, functionKey } = value as RuntimeConfig;
   // URL accepts some ambiguous spellings; reject them before canonicalization.
   if (!/^https?:\/\//i.test(apiBaseUrl) || /[\s\\?#]/u.test(apiBaseUrl)) {
     throw new Error('Invalid apiBaseUrl');
@@ -44,5 +44,9 @@ export function validateConfig(value: unknown): RuntimeConfig {
     throw new Error('Invalid apiBaseUrl');
   }
 
-  return Object.freeze({ environment, apiBaseUrl: url.href.replace(/\/+$/, '') });
+  return Object.freeze({
+    environment,
+    apiBaseUrl: url.href.replace(/\/+$/, ''),
+    ...(functionKey === undefined ? {} : { functionKey }),
+  });
 }
