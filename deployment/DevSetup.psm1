@@ -80,6 +80,7 @@ function Get-DevContext {
         [string]$ResourceGroup = 'rg-tempics-dev',
         [string]$IdentityName = 'id-tempics-gh-dev',
         [string]$FunctionAppName = 'func-tempics-api-dev',
+        [string]$UiStorageName,
         [string]$Repository = 'george-pov/tempics',
         [string]$EnvironmentName = 'dev'
     )
@@ -117,7 +118,7 @@ function Get-DevContext {
         $oidc.sub_claim_prefix -cne 'repo:george-pov@287842525/tempics@1368115642') {
         throw 'Repository OIDC subject mismatch; review the federation before setup.'
     }
-    return @{
+    $context = @{
         Repository = $Repository; EnvironmentName = $EnvironmentName
         SubscriptionId = $SubscriptionId; ResourceGroup = $ResourceGroup; FunctionAppName = $FunctionAppName
         Variables = [ordered]@{
@@ -126,6 +127,19 @@ function Get-DevContext {
             AZURE_FUNCTION_APP = $FunctionAppName; TP_ENV = 'dev'; TP_API_URL = "https://$($app.host)/api"
         }
     }
+    # API-only consumers do not require Storage management access.
+    if ($UiStorageName) {
+        if ($UiStorageName -cne 'sttempicsuidev') { throw 'Unexpected UI Storage account.' }
+        $storage = Invoke-DevCli az @('storage', 'account', 'show', '--subscription', $SubscriptionId,
+            '-g', $ResourceGroup, '-n', $UiStorageName, '--query', '{id:id,web:primaryEndpoints.web}', '-o', 'json') -Operation 'Read UI Storage' | ConvertFrom-Json
+        if ($storage.id -ine "$scope/providers/Microsoft.Storage/storageAccounts/$UiStorageName" -or
+            $storage.web -cnotmatch '^https://sttempicsuidev\.z[0-9]+\.web\.core\.windows\.net/$') {
+            throw 'UI Storage identity or website endpoint mismatch.'
+        }
+        $context.Variables['AZURE_UI_STORAGE'] = $UiStorageName
+        $context.Variables['TP_UI_URL'] = $storage.web
+    }
+    return $context
 }
 
 function Get-DevPolicy {

@@ -8,6 +8,8 @@ param environmentName string
 param identityName string
 @allowed(['func-tempics-api-dev'])
 param functionAppName string
+@allowed(['sttempicsuidev'])
+param uiStorageName string
 @allowed(['george-pov/tempics'])
 param repository string = 'george-pov/tempics'
 @allowed(['repo:george-pov@287842525/tempics@1368115642'])
@@ -44,6 +46,7 @@ module githubAccess './github-access.bicep' = {
   params: {
     principalId: deployIdentity.properties.principalId
     functionAppName: functionAppName
+    uiStorageName: uiStorageName
   }
 }
 

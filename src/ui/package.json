@@ -9,7 +9,9 @@
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
     "config:write": "node scripts/write-config.mjs",
-    "test:config": "node --test scripts/write-config.test.mjs"
+    "test:config": "node --test scripts/write-config.test.mjs",
+    "package:site": "node scripts/package-site.mjs",
+    "test:site": "node --test scripts/package-site.test.mjs"
   },
   "private": true,
   "packageManager": "npm@12.0.1",

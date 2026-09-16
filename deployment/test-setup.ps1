@@ -49,6 +49,7 @@ $module = Import-Module (Join-Path $PSScriptRoot 'DevSetup.psm1') -Force -PassTh
             'Read Function metadata' { $script:App; break }
             'Read repository' { $script:Repo; break }
             'Read OIDC subject' { $script:Oidc; break }
+            'Read UI Storage' { $script:Storage; break }
             'Read environments' { ,@(@{ environments = $(if ($script:Exists) { @(@{ name = 'dev' }) } else { @() }) }); break }
             'Read dev policy' { @{ deployment_branch_policy = $script:Policy; protection_rules = $script:Reviewers }; break }
             'Read branch rules' { ,@(@{ branch_policies = $script:Rules }); break }
@@ -84,6 +85,7 @@ $module = Import-Module (Join-Path $PSScriptRoot 'DevSetup.psm1') -Force -PassTh
             host = 'func-tempics-api-dev.azurewebsites.net'; runtime = @{ name = 'dotnet-isolated'; version = '10.0' } }
         $script:Repo = @{ full_name = 'george-pov/tempics'; default_branch = 'main' }
         $script:Oidc = @{ use_default = $true; use_immutable_subject = $true; sub_claim_prefix = 'repo:george-pov@287842525/tempics@1368115642' }
+        $script:Storage = @{ id = "$scope/providers/Microsoft.Storage/storageAccounts/sttempicsuidev"; web = 'https://sttempicsuidev.z5.web.core.windows.net/' }
         $script:Exists = $false
         $script:Policy = @{ protected_branches = $false; custom_branch_policies = $true }
         $script:Rules = @()
@@ -178,6 +180,31 @@ $module = Import-Module (Join-Path $PSScriptRoot 'DevSetup.psm1') -Force -PassTh
     Reject { Set-DevSecret $context 'existing-key' }
     Assert (-not @($script:Calls | Where-Object Operation -EQ 'Read scoped Function key').Count) 'Key read before environment protection.'
     $script:Passed++
+    foreach ($mutate in @(
+        { $script:Storage.id = '/wrong' },
+        { $script:Storage.web = '' },
+        { $script:Storage.web = 'https://other.z5.web.core.windows.net/' },
+        { $script:Storage.web = 'http://sttempicsuidev.z5.web.core.windows.net/' },
+        { $script:Storage.web = 'https://sttempicsuidev.z5.web.core.windows.net/?key=x' },
+        { $script:Fail = 'Read UI Storage' }
+    )) {
+        Reset; & $mutate
+        Reject { Get-DevContext -SubscriptionId $script:Sub -UiStorageName sttempicsuidev }
+        $script:Passed++
+    }
+    Reset
+    Reject { Get-DevContext -SubscriptionId $script:Sub -UiStorageName other }
+    $api = Get-DevContext -SubscriptionId $script:Sub
+    $ui = Get-DevContext -SubscriptionId $script:Sub -UiStorageName sttempicsuidev
+    foreach ($item in $api.Variables.GetEnumerator()) {
+        Assert ($ui.Variables[$item.Key] -ceq $item.Value) 'API settings drifted when UI was added.'
+    }
+    Assert ($ui.Variables.Count -eq 9) 'UI variable count mismatch.'
+    Set-DevEnvironment $ui
+    foreach ($item in $ui.Variables.GetEnumerator()) { Set-DevVariable $ui $item.Key $item.Value }
+    Assert ($script:Variables.TP_UI_URL -ceq $script:Storage.web) 'UI endpoint mismatch.'
+    Assert (-not @($script:Calls | Where-Object Operation -Match 'key|secret').Count) 'UI setup accessed a credential.'
+    $script:Passed += 2
     $script:Calls.Clear()
     $script:KeyOutput = $null
     $script:FakeKey = $null

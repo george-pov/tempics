@@ -1,16 +1,19 @@
-# GitHub Development API Deployment
+# GitHub Development Deployment
 
 The [API workflow](../../.github/workflows/deploy-api.yml) builds and tests a
 Linux Function ZIP, then deploys it to `func-tempics-api-dev` using Azure OIDC.
-Dispatch is manual, from `main`, into GitHub Environment `dev`. Infrastructure
-provisioning remains manual. The UI continues to use the
-[manual Storage publication procedure](ui-storage.md).
+The separate [UI workflow](../../.github/workflows/deploy-ui.yml) publishes a
+verified Angular package to `sttempicsuidev/$web`. Both workflows dispatch
+manually from `main` into GitHub Environment `dev`. Infrastructure provisioning
+remains manual; see the [Storage hosting contract](ui-storage.md).
 
 The [verified API run](https://github.com/george-pov/tempics/actions/runs/35044156602)
 passed on 2026-09-16 UTC at source revision
 `c90e41283f4d05899290c6d2dd158da5b07843c6`. Linux tests, OIDC login, scoped
 deployment, anonymous rejection, and the protected 1200 x 630 PNG check passed.
 The returned PNG was 222,958 bytes. Both build and deploy jobs succeeded.
+The UI workflow and packaging checks are locally validated; its container grant,
+GitHub settings, first hosted run, and browser proof are pending.
 
 ## Prerequisites
 
@@ -32,7 +35,10 @@ The returned PNG was 222,958 bytes. Both build and deploy jobs succeeded.
 Run from the repository root. The dedicated resource-group template creates
 `id-tempics-gh-dev`, federation `github-dev`, and Website Contributor
 (`de139f84-1756-47ae-9be6-808fbbe84772`) scoped to the dev Function only.
-It does not change runtime identities, storage roles, app settings, or CORS.
+It also defines Storage Blob Data Contributor
+(`ba92f5b4-2d11-453d-a403-e96b0029c9fe`) at
+`sttempicsuidev/blobServices/default/containers/$web` for UI uploads. Runtime
+identities, runtime storage roles, app settings, and CORS remain separate.
 
 Federation accepts issuer `https://token.actions.githubusercontent.com`, audience
 `api://AzureADTokenExchange`, and subject
@@ -60,7 +66,8 @@ az deployment group what-if --subscription $subscriptionId --resource-group $res
 if ($LASTEXITCODE -ne 0) { throw 'Access preview failed.' }
 ```
 
-Review only the identity, federation, and Function grant. What-If may report the
+Review only the identity, federation, Function grant, and UI container grant.
+The UI grant does not include account-wide Reader. What-If may report the
 role assignment as unsupported until the new identity's principal ID exists.
 Review its compiled scope and deterministic name, then verify the actual grant
 after Apply. Stop if any existing resource would be changed unexpectedly.
@@ -105,7 +112,8 @@ custom branch-only `main` policy if absent. A compatible existing Environment
 keeps its reviewers, timers, custom protection, and other settings. Incompatible
 policies stop setup for review; the script never removes existing rules.
 
-Only these seven Environment variables are written and read back:
+These nine Environment variables are written and read back. Existing secrets,
+including `AZURE_FUNCTION_KEY`, are preserved without reading their values:
 
 | Variable | Verified source |
 | --- | --- |
@@ -116,6 +124,8 @@ Only these seven Environment variables are written and read back:
 | `AZURE_FUNCTION_APP` | `func-tempics-api-dev` |
 | `TP_ENV` | `dev` |
 | `TP_API_URL` | Function HTTPS default hostname plus `/api` |
+| `AZURE_UI_STORAGE` | `sttempicsuidev` |
+| `TP_UI_URL` | Storage `primaryEndpoints.web`, read during operator setup |
 
 Setup is not transactional. After partial failure, inspect the existing state
 and rerun corrected setup. Unrelated variables and secrets are preserved.
@@ -200,6 +210,82 @@ dotnet test --solution src/api/Tempics.slnx -c Release --no-build
 retrieves credentials. For repeatable local packaging, supply fresh publish and
 artifact directories, a source SHA, and local numeric run identifiers. Local
 checks do not prove hosted OIDC/RBAC or Linux rendering on the GitHub runner.
+
+## UI Publication And Verification
+
+After approving the UI container grant, apply the reviewed access template and
+rerun `Set-DevConfig.ps1` to add `AZURE_UI_STORAGE` and `TP_UI_URL`. Its read-only
+preview checks the account resource ID and HTTPS website endpoint. The deployment
+runner uses only container-scoped blob data operations; it does not read account
+management metadata, retrieve storage keys, or configure CORS.
+
+After the reviewed UI files are on `main` and Storage publication is authorized:
+
+```powershell
+gh workflow run deploy-ui.yml --repo george-pov/tempics --ref main
+if ($LASTEXITCODE -ne 0) { throw 'UI workflow dispatch failed.' }
+gh run list --repo george-pov/tempics --workflow deploy-ui.yml --limit 5
+```
+
+The build job uses Node 24.16.0 and npm 12.0.1, runs configuration/package/Angular
+and HTTP-checker fixture tests, and creates the production build without runtime
+configuration. Artifact `ui-<commit>-<run-id>-<attempt>` holds `browser/`, the
+lockfile, and source/run/lock/asset hashes in `manifest.json`.
+
+Deploy checks out the same SHA and verifies every compiled file and the lockfile
+before installing locked packaging tooling. It never rebuilds the application.
+`package:site` copies the build into `dist/site/package`, uses the existing config
+writer for the two public settings, adds the standalone script-free error page,
+and writes `dist/site/blobs.json` outside the public package. Input compiled
+bytes stay unchanged. Fresh output is required; reuse the retained package for
+publication retries instead of overwriting a previous package.
+
+The blob map contains source, destination name, MIME, `no-store`, and SHA-256 for
+every file. It maps the same `index.html` to `index.html`, `component-lab`, and
+`component-lab/index.html`, avoiding a local file/directory collision. The upload
+script checks the whole map, regular paths, aliases, and hashes before any write.
+It uploads assets first, error/config next, route entries next, and root index
+last. MIME mappings explicitly include scripts, CSS, SVG/PNG/ICO, fonts, and font
+license/attribution TXT/MD files; an unknown type fails validation.
+
+The HTTP checker verifies root, configuration, both Component Lab paths, the
+error page, and every declared asset against package bytes/MIME/cache headers.
+Unique missing JSON and JS paths must return 404 with the standalone error page.
+Redirects, foreign resources, oversized bodies, and timeouts fail verification.
+The first authorized run also requires browser Home startup, navigation, and
+direct reload of both Component Lab paths. An unauthenticated sample API failure
+is expected; UI publication does not introduce browser authentication.
+
+The UI workflow never consumes the Function-key secret. Artifact
+`ui-dev-<commit>-<run-id>-<attempt>` retains `package/`, `blobs.json`, and the source
+manifest for 14 days, including public dev config. A retained candidate becomes
+known-good only after HTTP/browser verification; retain the previous known-good
+package before replacing it. No rollback occurs automatically after a failure.
+
+For an authorized recovery, restore that artifact under a local directory, check
+out its matching script revision, and use:
+
+```powershell
+./deployment/Publish-Ui.ps1 -PackagePath <artifact>/package -BlobMapPath <artifact>/blobs.json -InspectOnly
+$env:AZURE_SUBSCRIPTION_ID = $subscriptionId
+$env:AZURE_UI_STORAGE = 'sttempicsuidev'
+./deployment/Publish-Ui.ps1 -PackagePath <artifact>/package -BlobMapPath <artifact>/blobs.json
+```
+
+Uploads are not atomic. Partial failure reports the completed count; recover by
+republishing the same reviewed package or a compatible known-good package. Old
+hashed assets are preserved; the script never deletes/prunes blobs or uploads
+the map/manifest. Recheck the public endpoint after recovery.
+
+Additional local checks from the repository root:
+
+```powershell
+npm --prefix src/ui run test:config
+npm --prefix src/ui run test:site
+node --test deployment/check-ui.test.mjs
+./deployment/test-setup.ps1
+actionlint .github/workflows/deploy-api.yml .github/workflows/deploy-ui.yml
+```
 
 ## References
 

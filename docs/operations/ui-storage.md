@@ -44,19 +44,21 @@ website URL is returned as `uiWebsiteUrl`; do not infer its regional suffix.
 
 ## Application Pipeline Boundary
 
-The future GitHub deployment pipeline owns UI publication. It must:
+The [GitHub UI workflow](github-dev.md#ui-publication-and-verification) owns
+repeatable UI publication. It implements this sequence:
 
 1. Build/test the UI and retain a configuration-free compiled artifact.
-2. Generate dev `config.json` in a package copy using the existing `config:write`
-   command and explicit environment variables.
+2. Generate dev `config.json` in a separate package with `package:site`, which
+   reuses the existing config writer and explicit public environment variables.
 3. Include `404.html` and the current route entry copies for Component Lab.
 4. Upload the reviewed package to `$web` using Azure login and a scoped identity.
 5. Set and verify content types, including `font/woff2` and `text/html` for the
    extensionless Component Lab entry, and `Cache-Control: no-store` for config.
 6. Verify startup and route reloads after publication.
 
-The publishing identity and its Storage Blob Data Contributor grant on `$web`
-will be configured with that pipeline. A resource Owner role alone does not
+The dedicated manual access template defines the publishing identity's Storage
+Blob Data Contributor grant on `$web`. Apply it and configure GitHub separately
+before the first UI dispatch. A resource Owner role alone does not
 provide blob data access. The manually assigned operator role from the first
 publication is not embedded in Bicep or restored during group recreation.
 
@@ -83,6 +85,14 @@ For a failed upload, inspect the error and repeat the reviewed package upload.
 For bad configuration, correct process inputs, regenerate JSON, and republish it.
 For rollback, republish a compatible saved application/configuration pair.
 Do not delete the API's storage or resource group as website recovery.
+
+Retain the `ui-dev-<commit>-<run-id>-<attempt>` artifact before its 14-day expiry.
+Use `Publish-Ui.ps1` with its `package/` and `blobs.json`; `-InspectOnly` checks
+all hashes, MIME types, paths, and blob aliases without contacting Azure. Asset
+uploads precede config and entry documents; root `index.html` is last. Upload
+is not atomic, and old hashed assets remain available. The map and source
+manifest stay outside public storage. See the
+[UI workflow runbook](github-dev.md#ui-publication-and-verification) for commands.
 
 ## Reference
 

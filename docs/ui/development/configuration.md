@@ -80,7 +80,7 @@ npm ci
 npm run build
 $env:TP_ENV = 'dev'
 $env:TP_API_URL = 'https://dev.example.test/api'
-npm run config:write -- --out dist/tempics/browser
+npm run package:site -- --input dist/tempics/browser --out dist/site/package
 ```
 
 The example URL is a reserved fixture. Set the process variables to the intended
@@ -115,10 +115,11 @@ script. Carry the source revision and lockfile with the artifact provenance.
 Browser configuration is public. Never include client secrets, Function keys,
 access tokens, connection strings, or deployment credentials.
 
-A future deployment workflow should map the chosen GitHub Environment's values
-to `TP_ENV` and `TP_API_URL` as process variables, not executable script text.
-Require explicit dev/prod selection and verify the expected API host and UI
-origin. A valid URL can still target the wrong environment.
+The [GitHub UI workflow](../../operations/github-dev.md#ui-publication-and-verification)
+maps the dev Environment's values to `TP_ENV` and `TP_API_URL` as process
+variables, verifies the dev API/UI targets, and packages a copy of the build.
+Its site packaging supports dev only; `config:write` also supports explicit prod
+settings for separate callers. A valid URL can still target the wrong environment.
 
 Hosting must serve configuration as JSON with `Cache-Control: no-store`, avoid
 SPA fallback and redirects for missing config, and deliver a compatible
