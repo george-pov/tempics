@@ -33,6 +33,8 @@ artifacts out of this folder.
 
 - Manual development infrastructure and Function deployment:
   [`operations/azure-dev.md`](operations/azure-dev.md)
+- GitHub development API deployment and scoped access setup:
+  [`operations/github-dev.md`](operations/github-dev.md)
 - Manual UI storage website deployment:
   [`operations/ui-storage.md`](operations/ui-storage.md)
 

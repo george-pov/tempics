@@ -2,8 +2,10 @@
 
 Run these PowerShell commands from the repository root. The subscription Bicep
 deployment creates the resource group and the API/UI infrastructure. Application
-publication is separate: a later GitHub pipeline will upload the UI, and Function
-code is also deployed separately. Infrastructure deployment uploads no application.
+publication is separate: the [GitHub API workflow](github-dev.md) deploys Function
+code after its own access setup. The UI currently uses manual publication.
+Infrastructure deployment uploads no application. The commands below remain the
+manual API publication and recovery path.
 
 ## Resources And Configuration
 
@@ -54,6 +56,8 @@ neither file. See [UI hosting](ui-storage.md) for the publication contract.
 The UI publishing identity and its `$web` data role belong to the future GitHub
 deployment setup. The previous manual operator assignment is not recreated by
 this template. API CORS remains manually configured and is not owned by Bicep.
+API workflow federation and Function-scoped deployment access use the separate
+[GitHub access template and procedure](github-dev.md#1-preview-deployment-access).
 
 The existing Application Insights smart-detection alert and its notification
 action group are not declared here. Incremental deployment leaves that alert
