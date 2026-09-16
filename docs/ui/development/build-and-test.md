@@ -48,27 +48,26 @@ npm run build
 ```
 
 The optimized output under `dist/tempics/browser` contains no runtime JSON,
-even if local settings exist. Packaging is a separate command:
+even if local settings exist. The deployment workflow writes the complete JSON
+from GitHub Environment variable `UI_APP_CONFIG_JSON` to `config.json`.
+For a local copy of the build, write the file directly:
 
 ```powershell
-$env:TP_ENV = 'dev'
-$env:TP_API_URL = 'https://dev.example.test/api'
-npm run config:write -- --out dist/tempics/browser
+'{"environment":"dev","apiBaseUrl":"https://dev.example.test/api"}' |
+  Set-Content -LiteralPath dist/tempics/browser/config.json -Encoding utf8
 ```
 
 Use explicit dev/prod settings for each copy of the same build. The URL above is
 a reserved fixture. See [configuration](configuration.md#build-once-and-package)
-for supported Node versions, tooling/source alignment, and artifact reuse.
+for the runtime JSON contract.
 
 ## Unit Tests
 
 ```powershell
 npm test
 npm test -- --watch=false
-npm run test:config
 ```
 
-The Node packaging tests complement Angular tests and make no network requests.
 In PowerShell environments where `npm.ps1` consumes forwarded flags, use
 `npm.cmd` with the same arguments.
 

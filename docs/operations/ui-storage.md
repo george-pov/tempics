@@ -44,17 +44,18 @@ website URL is returned as `uiWebsiteUrl`; do not infer its regional suffix.
 
 ## Application Pipeline Boundary
 
-The [GitHub UI workflow](github-dev.md#ui-publication-and-verification) owns
+The [GitHub UI workflow](github-dev.md#4-deploy) owns
 repeatable UI publication. It implements this sequence:
 
-1. Build/test the UI and retain a configuration-free compiled artifact.
-2. Generate dev `config.json` in a separate package with `package:site`, which
-   reuses the existing config writer and explicit public environment variables.
+1. Install locked dependencies and build the UI.
+2. Write `UI_APP_CONFIG_JSON` directly to `config.json` in the compiled output.
 3. Include `404.html` and the current route entry copies for Component Lab.
-4. Upload the reviewed package to `$web` using Azure login and a scoped identity.
-5. Set and verify content types, including `font/woff2` and `text/html` for the
-   extensionless Component Lab entry, and `Cache-Control: no-store` for config.
-6. Verify startup and route reloads after publication.
+4. Upload the compiled directory to `$web` using Azure login and a scoped identity.
+5. Let Azure CLI infer asset content types and explicitly set `text/html` for
+   Component Lab entries. Set `Cache-Control: no-store` on all uploads.
+
+Successful Azure CLI completion is the deployment result. The workflow does not
+run tests, hash checks, HTTP probes, or browser startup checks.
 
 The dedicated manual access template defines the publishing identity's Storage
 Blob Data Contributor grant on `$web`. Apply it and configure GitHub separately
@@ -74,25 +75,20 @@ After infrastructure creation, verify the account security properties, the
 enabled website/index/error settings, and the private `$web` container. An empty
 website returning 404 is expected until the application pipeline publishes it.
 
-After application publication, check HTTPS `/`, `/config.json`, `/component-lab`,
-and `/component-lab/` plus the
-referenced scripts/styles/fonts. Confirm JSON MIME type and `no-store`, and
-confirm an unknown config-like path returns 404 without application fallback.
-Open Home and reload Component Lab in a browser. API CORS and authenticated
-rendering require separate Azure dev integration checks.
+Application deployment relies on Azure CLI success. For optional troubleshooting,
+inspect the relevant page, asset, or configuration response. API CORS and
+authenticated rendering are separate from website publication.
 
 For a failed upload, inspect the error and repeat the reviewed package upload.
-For bad configuration, correct process inputs, regenerate JSON, and republish it.
+For bad configuration, correct `UI_APP_CONFIG_JSON` in GitHub and redeploy.
 For rollback, republish a compatible saved application/configuration pair.
 Do not delete the API's storage or resource group as website recovery.
 
-Retain the `ui-dev-<commit>-<run-id>-<attempt>` artifact before its 14-day expiry.
-Use `Publish-Ui.ps1` with its `package/` and `blobs.json`; `-InspectOnly` checks
-all hashes, MIME types, paths, and blob aliases without contacting Azure. Asset
-uploads precede config and entry documents; root `index.html` is last. Upload
-is not atomic, and old hashed assets remain available. The map and source
-manifest stay outside public storage. See the
-[UI workflow runbook](github-dev.md#ui-publication-and-verification) for commands.
+The workflow does not retain artifacts or produce blob maps/manifests. Uploads
+are not atomic, and old assets remain available. Restore an earlier source
+revision on `main` through the authorized Git process and dispatch again, or
+manually republish a saved compatible application/configuration pair. See the
+[UI workflow runbook](github-dev.md#4-deploy) for commands.
 
 ## Reference
 

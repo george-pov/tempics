@@ -26,7 +26,7 @@ schemes. Trailing slashes are removed while preserving the API path prefix.
 `SampleRenderApi` appends `/renders/sample` and sends an empty POST for a PNG
 Blob without Function keys, Authorization headers, or credentialed requests.
 
-The browser and packaging script share `config.schema.json` and
+The browser uses `config.schema.json` and
 `validateConfig` under `src/ui/src/app/shared/config/`. The schema validator is
 `@cfworker/json-schema` 4.1.1. It interprets the schema without generated source
 or runtime eval. See the [validator documentation](https://github.com/cfworker/cfworker/blob/main/packages/json-schema/README.md).
@@ -67,59 +67,44 @@ are not displayed. Settings are loaded once per page load.
 
 ## Build Once And Package
 
-Use Node satisfying the Angular toolchain engines:
-`^22.22.3 || ^24.15.0 || >=26.0.0`. Node's native
-[TypeScript stripping](https://nodejs.org/api/typescript.html) lets the packaging
-script import the authored validator; Angular compilation still checks types.
-The UI package declares ES module format for this shared tooling.
+Production builds exclude `config.json` and `config.json.*` even when local
+settings exist. Both hosted dev and prod use the optimized production build.
 
-From `src/ui/`:
+Store the complete public JSON in the GitHub Environment variable
+`UI_APP_CONFIG_JSON`. The workflow writes it directly into the build output:
+
+```bash
+printf '%s\n' "$UI_APP_CONFIG_JSON" > dist/tempics/browser/config.json
+```
+
+For a local copy of the production build, from `src/ui/`:
 
 ```powershell
 npm ci
 npm run build
-$env:TP_ENV = 'dev'
-$env:TP_API_URL = 'https://dev.example.test/api'
-npm run package:site -- --input dist/tempics/browser --out dist/site/package
+'{"environment":"dev","apiBaseUrl":"https://dev.example.test/api"}' |
+  Set-Content -LiteralPath dist/tempics/browser/config.json -Encoding utf8
 ```
 
-The example URL is a reserved fixture. Set the process variables to the intended
-public endpoint when preparing a real package. `TP_ENV` and `TP_API_URL` are
-required; there is no inferred/default environment. Packaging accepts only
-`dev` or `prod` and serializes only `environment` and `apiBaseUrl`.
+The example URL is a reserved fixture. Use the intended public API URL for a
+real deployment. No generator or packaging script is required. The browser
+validates the JSON at startup using the contract above.
 
-The output must be an existing directory below `src/ui/dist` containing a regular
-`index.html`. Source/public paths and symbolic-link escapes are rejected. The
-script validates first, writes an exclusively created temporary sibling, and
-renames it to `config.json`. Invalid inputs and failed writes preserve an
-existing config. Error messages identify fields or safe failure categories
-without printing values.
-
-Production builds exclude `config.json` and `config.json.*` even when a local
-file exists. Development assets include the local JSON but exclude temporary
-siblings. Build modes do not select deployment environments: both hosted dev
-and prod use the optimized production build.
-
-Keep the original build configuration-free. Copy its output to separate
-directories under `dist`, then package each with explicit dev/prod variables.
-Packaging performs no install, build, bundle edits, or TypeScript generation.
-All JavaScript, CSS, HTML, fonts, and other static assets stay identical.
-Changing JSON and reloading selects the new address without recompilation.
-
-A separate packaging runner must check out source matching the compiled
-artifact and install the locked tooling dependencies before invoking the
-script. Carry the source revision and lockfile with the artifact provenance.
+To prepare multiple environments from one build, copy the configuration-free
+output and add the appropriate `config.json` to each copy. JavaScript, CSS,
+HTML, and fonts stay unchanged. Changing JSON and reloading selects the new
+address without recompilation.
 
 ## Hosting And Authentication Follow-Up
 
 Browser configuration is public. Never include client secrets, Function keys,
 access tokens, connection strings, or deployment credentials.
 
-The [GitHub UI workflow](../../operations/github-dev.md#ui-publication-and-verification)
-maps the dev Environment's values to `TP_ENV` and `TP_API_URL` as process
-variables, verifies the dev API/UI targets, and packages a copy of the build.
-Its site packaging supports dev only; `config:write` also supports explicit prod
-settings for separate callers. A valid URL can still target the wrong environment.
+The [GitHub UI workflow](../../operations/github-dev.md#4-deploy) writes the dev
+Environment's `UI_APP_CONFIG_JSON` directly to `config.json` after the build, then
+uploads that directory. It relies on Azure upload success without running tests
+or hosted checks. JSON validation happens in the browser at startup.
+A valid URL can still target the wrong environment.
 
 Hosting must serve configuration as JSON with `Cache-Control: no-store`, avoid
 SPA fallback and redirects for missing config, and deliver a compatible
@@ -129,5 +114,5 @@ does not prove hosted access. Preserve compatible pairs for rollback.
 
 Add `auth.clientId`, `auth.authority`, `auth.redirectUri`,
 `auth.postLogoutRedirectUri`, and `auth.apiScopes` only with their first Entra/MSAL
-consumers. Extend the schema, runtime type, generator, providers, and tests
+consumers. Extend the schema, runtime type, providers, and tests
 together. The current settings do not implement authentication.

@@ -1,32 +1,29 @@
 # GitHub Development Deployment
 
-The [API workflow](../../.github/workflows/deploy-api.yml) builds and tests a
-Linux Function ZIP, then deploys it to `func-tempics-api-dev` using Azure OIDC.
-The separate [UI workflow](../../.github/workflows/deploy-ui.yml) publishes a
-verified Angular package to `sttempicsuidev/$web`. Both workflows dispatch
-manually from `main` into GitHub Environment `dev`. Infrastructure provisioning
-remains manual; see the [Storage hosting contract](ui-storage.md).
+The [API workflow](../../.github/workflows/deploy-api.yml) publishes the .NET app
+and deploys it to `func-tempics-api-dev`. The
+[UI workflow](../../.github/workflows/deploy-ui.yml) builds Angular, writes public
+runtime configuration, and uploads it to `sttempicsuidev/$web`.
 
-The [verified API run](https://github.com/george-pov/tempics/actions/runs/35044156602)
-passed on 2026-09-16 UTC at source revision
-`c90e41283f4d05899290c6d2dd158da5b07843c6`. Linux tests, OIDC login, scoped
-deployment, anonymous rejection, and the protected 1200 x 630 PNG check passed.
-The returned PNG was 222,958 bytes. Both build and deploy jobs succeeded.
-The UI workflow and packaging checks are locally validated; its container grant,
-GitHub settings, first hosted run, and browser proof are pending.
+Each workflow has one job, runs manually from `main`, uses GitHub Environment
+`dev`, and signs in to Azure with OIDC. Each job has a five-minute limit,
+including build and deployment. Actions use major-version tags.
+A successful Azure deployment action or upload command is the deployment result.
+Neither workflow runs tests, artifact/hash checks, HTTP probes, or browser checks.
+Infrastructure provisioning remains manual.
 
 ## Prerequisites
 
 - Existing Linux Flex Consumption .NET 10 Function infrastructure in
   `rg-tempics-dev`, region `westus2`; see [manual Azure setup](azure-dev.md).
 - PowerShell 7.2+, Azure CLI with Bicep, and GitHub CLI. Use existing `az login`
-  and `gh auth login` sessions. Setup scripts do not authenticate for you.
+  and `gh auth login` sessions.
 - An explicitly selected subscription and its matching identity tenant.
 - Operator permission to deploy the access template and create its role
-  assignment, plus GitHub permission to administer the repository Environment,
-  variables, and secrets. These are operator permissions, not runner grants.
+  assignment, plus GitHub permission to administer the repository Environment
+  and variables. These are operator permissions, not runner grants.
 - Separate authorization for infrastructure Apply, GitHub configuration,
-  Function-key retrieval/transfer, Git publication, and application deployment.
+  Git publication and application deployment.
 - Reviewed workflow and scripts on `george-pov/tempics` branch `main` before
   dispatch. No application source changes are required by this procedure.
 
@@ -45,7 +42,8 @@ Federation accepts issuer `https://token.actions.githubusercontent.com`, audienc
 `repo:george-pov@287842525/tempics@1368115642:environment:dev`.
 The immutable owner/repository IDs come from GitHub's OIDC configuration:
 `gh api repos/george-pov/tempics/actions/oidc/customization/sub`.
-Setup verifies this prefix; name-only subjects do not match this repository.
+Match this prefix when configuring federation; name-only subjects do not match
+this repository.
 The Environment branch policy and
 workflow ref check separately restrict execution to `main`.
 
@@ -94,202 +92,78 @@ require readback and bounded waiting, not broader roles or weaker trust.
 
 ## 3. Configure The GitHub Environment
 
-After the identity exists, preview the proposed public settings:
+Configure the repository's `dev` Environment directly in GitHub. Restrict its
+deployment branches to `main` and set these Environment variables from the
+Azure resources:
 
-```powershell
-./deployment/Set-DevConfig.ps1 -SubscriptionId $subscriptionId -InspectOnly
-```
-
-After GitHub setup authorization, run without `-InspectOnly`:
-
-```powershell
-./deployment/Set-DevConfig.ps1 -SubscriptionId $subscriptionId
-```
-
-The script verifies the subscription, tenant, resource IDs, Function runtime,
-hostname, repository, and default branch before writes. It creates `dev` with a
-custom branch-only `main` policy if absent. A compatible existing Environment
-keeps its reviewers, timers, custom protection, and other settings. Incompatible
-policies stop setup for review; the script never removes existing rules.
-
-These nine Environment variables are written and read back. Existing secrets,
-including `AZURE_FUNCTION_KEY`, are preserved without reading their values:
-
-| Variable | Verified source |
+| Variable | Source |
 | --- | --- |
 | `AZURE_CLIENT_ID` | `id-tempics-gh-dev` client ID |
 | `AZURE_TENANT_ID` | Identity tenant, matching selected subscription |
 | `AZURE_SUBSCRIPTION_ID` | Explicit operator input |
-| `AZURE_RESOURCE_GROUP` | `rg-tempics-dev` |
 | `AZURE_FUNCTION_APP` | `func-tempics-api-dev` |
-| `TP_ENV` | `dev` |
-| `TP_API_URL` | Function HTTPS default hostname plus `/api` |
+| `UI_APP_CONFIG_JSON` | Complete public runtime JSON, shown below |
 | `AZURE_UI_STORAGE` | `sttempicsuidev` |
-| `TP_UI_URL` | Storage `primaryEndpoints.web`, read during operator setup |
 
-Setup is not transactional. After partial failure, inspect the existing state
-and rerun corrected setup. Unrelated variables and secrets are preserved.
+Set `UI_APP_CONFIG_JSON` to the complete configuration for the target environment:
 
-## 4. Transfer The Existing Function Key
-
-Select an existing `RenderSample` function-scoped key by name through your
-approved credential process. Obtain separate approval to retrieve and transfer
-that key. Do not use a host/master key, create a key, or rotate one implicitly.
-
-```powershell
-$keyName = Read-Host 'Existing RenderSample key name (not its value)'
-./deployment/Set-DevKey.ps1 -SubscriptionId $subscriptionId -KeyName $keyName
+```json
+{
+  "environment": "dev",
+  "apiBaseUrl": "https://func-tempics-api-dev.azurewebsites.net/api"
+}
 ```
 
-The script revalidates the target and protected Environment. It captures only
-the selected scoped key into process memory and sends it to GitHub CLI stdin as
-Environment secret `AZURE_FUNCTION_KEY`. It does not use a secret command-line
-argument, transcript, temporary file, or raw native error output. Output contains
-only the secret name and update timestamp; the hosted check proves usability.
-Run outside shell transcripts/debug tracing. Operators own credential expiry,
-revocation, and explicit rotation, including updating GitHub after a rotation.
+The workflows require these six variables. Previously configured
+`AZURE_RESOURCE_GROUP`, `TP_ENV`, `TP_API_URL`, and `TP_UI_URL` variables are no
+longer consumed by the workflows.
 
-The key is used only by workflow preflight and API verification. It never enters
-the build, Function ZIP, manifest, deployment action, UI, or public runtime JSON.
-The browser still makes unauthenticated requests; application sign-in remains
-a separate capability. GitHub OIDC authenticates deployment only.
+## 4. Deploy
 
-## 5. Dispatch And Verify
-
-After Git publication and exact Function deployment authorization:
+After the workflow changes are on `main`, dispatch the desired application:
 
 ```powershell
 gh workflow run deploy-api.yml --repo george-pov/tempics --ref main
-if ($LASTEXITCODE -ne 0) { throw 'Workflow dispatch failed.' }
-gh run list --repo george-pov/tempics --workflow deploy-api.yml --limit 5
-```
-
-Record the exact run URL and source SHA. Both jobs check out that SHA. The build
-job has read-only repository access and no Environment or OIDC permission. It
-runs solution restore/build/test and checker/setup tests, publishes `linux-x64`
-with RID-specific restore, and checks the complete ZIP including hidden metadata,
-native libraries, and protected `RenderSample`. Local settings are forbidden.
-
-The artifact `api-<commit>-<run-id>-<attempt>` holds only `function.zip` and a
-manifest with source SHA, run ID/attempt, and ZIP SHA-256. Deploy downloads only
-that run's artifact, validates it, logs in with OIDC, and confirms the actual
-Linux Flex .NET 10 target and URL before publishing with remote build disabled.
-Deploy jobs serialize under `tempics-api-dev` through verification.
-
-The hosted checker requires anonymous POST to return 401/403, then a keyed POST
-to return 200 and `image/png` with a valid PNG signature/IHDR and 1200 x 630
-dimensions. It rejects redirects and responses over 5 MiB, limits requests to
-60 seconds, and permits at most three attempts per request only for transport,
-429, and 5xx failures. Retry waits respect the 390-second overall deadline.
-The summary reports upload and verification separately. A failed verification
-fails the job and does not automatically roll back the deployed code.
-
-## Recovery And Local Checks
-
-Artifacts expire after 14 days. Preserve a known-good ZIP and its matching
-manifest safely before expiry. After explicit authorization, recover by
-redeploying that ZIP to the same Function using the
-[manual publish command](azure-dev.md#4-publish-the-package), with remote build
-disabled. Compare its SHA-256 with the retained manifest before use. Retrying a
-workflow rebuilds the selected source; it is not a substitute for selecting a
-known-good retained package. UI files and infrastructure are separate.
-
-Local checks require no real key or live writes:
-
-```powershell
-node --test deployment/check-api.test.mjs
-./deployment/test-setup.ps1
-actionlint .github/workflows/deploy-api.yml
-dotnet restore src/api/Tempics.slnx
-dotnet build src/api/Tempics.slnx -c Release --no-restore
-dotnet test --solution src/api/Tempics.slnx -c Release --no-build
-```
-
-`Package-Api.ps1` owns ZIP checks and manifest generation/readback;
-`Check-ApiTarget.ps1` owns workflow input and filtered ARM validation. Neither
-retrieves credentials. For repeatable local packaging, supply fresh publish and
-artifact directories, a source SHA, and local numeric run identifiers. Local
-checks do not prove hosted OIDC/RBAC or Linux rendering on the GitHub runner.
-
-## UI Publication And Verification
-
-After approving the UI container grant, apply the reviewed access template and
-rerun `Set-DevConfig.ps1` to add `AZURE_UI_STORAGE` and `TP_UI_URL`. Its read-only
-preview checks the account resource ID and HTTPS website endpoint. The deployment
-runner uses only container-scoped blob data operations; it does not read account
-management metadata, retrieve storage keys, or configure CORS.
-
-After the reviewed UI files are on `main` and Storage publication is authorized:
-
-```powershell
 gh workflow run deploy-ui.yml --repo george-pov/tempics --ref main
-if ($LASTEXITCODE -ne 0) { throw 'UI workflow dispatch failed.' }
-gh run list --repo george-pov/tempics --workflow deploy-ui.yml --limit 5
 ```
 
-The build job uses Node 24.16.0 and npm 12.0.1, runs configuration/package/Angular
-and HTTP-checker fixture tests, and creates the production build without runtime
-configuration. Artifact `ui-<commit>-<run-id>-<attempt>` holds `browser/`, the
-lockfile, and source/run/lock/asset hashes in `manifest.json`.
+Run only the workflow for the application you intend to deploy. Follow its
+result in GitHub Actions. Each application has its own concurrency group;
+in-progress deployments are not cancelled by later dispatches.
 
-Deploy checks out the same SHA and verifies every compiled file and the lockfile
-before installing locked packaging tooling. It never rebuilds the application.
-`package:site` copies the build into `dist/site/package`, uses the existing config
-writer for the two public settings, adds the standalone script-free error page,
-and writes `dist/site/blobs.json` outside the public package. Input compiled
-bytes stay unchanged. Fresh output is required; reuse the retained package for
-publication retries instead of overwriting a previous package.
+The API uses .NET 10 and `dotnet publish` for Linux x64. The Functions action
+packages the published directory and deploys it with remote build disabled.
+It does not run solution tests or call the protected sample endpoint.
 
-The blob map contains source, destination name, MIME, `no-store`, and SHA-256 for
-every file. It maps the same `index.html` to `index.html`, `component-lab`, and
-`component-lab/index.html`, avoiding a local file/directory collision. The upload
-script checks the whole map, regular paths, aliases, and hashes before any write.
-It uploads assets first, error/config next, route entries next, and root index
-last. MIME mappings explicitly include scripts, CSS, SVG/PNG/ICO, fonts, and font
-license/attribution TXT/MD files; an unknown type fails validation.
+The UI uses Node 24 and npm 12 with `npm ci` and the production build. The
+workflow writes `UI_APP_CONFIG_JSON` directly to `config.json` with `printf`.
+It also copies the standalone `404.html` error page.
+Azure CLI uploads the directory to `$web` with Azure login, overwrite enabled,
+and `Cache-Control: no-store`; it infers asset MIME types from their extensions.
+Two explicit HTML uploads publish the same entry page at `component-lab` and
+`component-lab/index.html`. See the [Storage hosting contract](ui-storage.md).
 
-The HTTP checker verifies root, configuration, both Component Lab paths, the
-error page, and every declared asset against package bytes/MIME/cache headers.
-Unique missing JSON and JS paths must return 404 with the standalone error page.
-Redirects, foreign resources, oversized bodies, and timeouts fail verification.
-The first authorized run also requires browser Home startup, navigation, and
-direct reload of both Component Lab paths. An unauthenticated sample API failure
-is expected; UI publication does not introduce browser authentication.
+Neither workflow uses `AZURE_FUNCTION_KEY`. An existing Environment secret is
+left in place; no key retrieval or transfer is needed for deployment. Browser
+API authentication and manual CORS configuration remain separate responsibilities.
+The browser's runtime config validator still enforces the public JSON contract
+at startup; deployment does not parse or validate the supplied JSON.
 
-The UI workflow never consumes the Function-key secret. Artifact
-`ui-dev-<commit>-<run-id>-<attempt>` retains `package/`, `blobs.json`, and the source
-manifest for 14 days, including public dev config. A retained candidate becomes
-known-good only after HTTP/browser verification; retain the previous known-good
-package before replacing it. No rollback occurs automatically after a failure.
+## Recovery
 
-For an authorized recovery, restore that artifact under a local directory, check
-out its matching script revision, and use:
+Workflows build and deploy in the same job and do not retain deployment artifacts
+or manifests. Fix a failed build/upload and dispatch again. To restore an older
+application version, publish that source to `main` through the normal authorized
+Git process and dispatch the corresponding workflow.
 
-```powershell
-./deployment/Publish-Ui.ps1 -PackagePath <artifact>/package -BlobMapPath <artifact>/blobs.json -InspectOnly
-$env:AZURE_SUBSCRIPTION_ID = $subscriptionId
-$env:AZURE_UI_STORAGE = 'sttempicsuidev'
-./deployment/Publish-Ui.ps1 -PackagePath <artifact>/package -BlobMapPath <artifact>/blobs.json
-```
+Storage uploads are not atomic. A failed command leaves already uploaded files
+in place, and uploads do not delete old assets. A rerun overwrites the same entry
+pages and config. Infrastructure and API/UI publication remain independent.
 
-Uploads are not atomic. Partial failure reports the completed count; recover by
-republishing the same reviewed package or a compatible known-good package. Old
-hashed assets are preserved; the script never deletes/prunes blobs or uploads
-the map/manifest. Recheck the public endpoint after recovery.
-
-Additional local checks from the repository root:
-
-```powershell
-npm --prefix src/ui run test:config
-npm --prefix src/ui run test:site
-node --test deployment/check-ui.test.mjs
-./deployment/test-setup.ps1
-actionlint .github/workflows/deploy-api.yml .github/workflows/deploy-ui.yml
-```
+Application publication is defined directly in the two workflow files.
 
 ## References
 
-- [Functions action and Flex deployment inputs](https://github.com/Azure/functions-action)
-- [GitHub Environment branch policies](https://docs.github.com/en/rest/deployments/branch-policies)
+- [Azure Functions action](https://github.com/Azure/functions-action)
+- [Azure Storage blob upload commands](https://learn.microsoft.com/en-us/cli/azure/storage/blob)
 - [GitHub OIDC with Azure](https://docs.github.com/en/actions/how-tos/secure-your-work/security-harden-deployments/oidc-in-azure)
-- [Immutable OIDC subject reference](https://docs.github.com/en/actions/reference/security/oidc#immutable-subject-claims)
