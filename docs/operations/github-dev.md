@@ -6,9 +6,11 @@ Dispatch is manual, from `main`, into GitHub Environment `dev`. Infrastructure
 provisioning remains manual. The UI continues to use the
 [manual Storage publication procedure](ui-storage.md).
 
-Local workflow, setup, package, and checker validation has passed. The first
-hosted workflow run and OIDC/RBAC verification are pending. A configured
-Environment and a successful upload alone do not prove protected rendering.
+The [verified API run](https://github.com/george-pov/tempics/actions/runs/35044156602)
+passed on 2026-09-16 UTC at source revision
+`c90e41283f4d05899290c6d2dd158da5b07843c6`. Linux tests, OIDC login, scoped
+deployment, anonymous rejection, and the protected 1200 x 630 PNG check passed.
+The returned PNG was 222,958 bytes. Both build and deploy jobs succeeded.
 
 ## Prerequisites
 
