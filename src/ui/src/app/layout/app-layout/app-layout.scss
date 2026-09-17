@@ -1,0 +1,109 @@
+@use 'src/styles/variables' as *;
+
+:host {
+  display: block;
+  min-block-size: 100dvh;
+  background: $app-color-background;
+}
+
+.header {
+  background: $app-color-surface;
+  border-bottom: $app-border-default;
+}
+
+.header-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: $app-space-3 $app-space-8;
+  padding-block: $app-space-3;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: $app-space-3;
+  min-block-size: 2.75rem;
+  text-decoration: none;
+  font-size: 1.25rem;
+  font-weight: 500;
+  border-radius: $app-radius-sm;
+}
+
+.mark {
+  display: grid;
+  place-items: center;
+  inline-size: 2.25rem;
+  block-size: 2.25rem;
+  border-radius: $app-radius-md;
+  background: $app-color-action-primary;
+  color: $app-color-white;
+}
+
+.navigation,
+nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: $app-space-2;
+}
+
+.nav-link {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: 2.75rem;
+  padding: $app-space-2 $app-space-4;
+  border-radius: $app-radius-sm;
+  text-decoration: none;
+  font-weight: 500;
+
+  &:hover {
+    background: $app-color-surface-hover;
+  }
+
+  &.is-active {
+    background: $app-color-action-soft;
+    color: $app-color-action-primary;
+    text-decoration: underline;
+    text-underline-offset: 0.35em;
+    text-decoration-thickness: 2px;
+  }
+}
+
+.content {
+  padding-block: $app-space-8;
+}
+
+.skip-link {
+  position: absolute;
+  inset-block-start: $app-space-2;
+  inset-inline-start: $app-space-4;
+  z-index: 1;
+  padding: $app-space-3 $app-space-4;
+  border-radius: $app-radius-sm;
+  background: $app-color-surface;
+  color: $app-color-action-primary;
+  transform: translateY(calc(-100% - #{$app-space-4}));
+
+  &:focus {
+    transform: translateY(0);
+  }
+}
+
+a:focus-visible,
+.content:focus-visible {
+  outline: 2px solid $app-color-action-primary;
+  outline-offset: 3px;
+}
+
+@media (max-width: #{$app-breakpoint-sm - 1px}) {
+  .navigation {
+    flex-basis: 100%;
+    justify-content: space-between;
+  }
+
+  .content {
+    padding-block: $app-space-6;
+  }
+}

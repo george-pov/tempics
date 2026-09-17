@@ -1,0 +1,26 @@
+<div class="app-grid">
+  <header>
+    <h1>Image Generator</h1>
+    <p class="app-mb-0">Create an image from a template. Try a sample to get started.</p>
+  </header>
+
+  <div class="app-actions">
+    <app-button [disabled]="isGenerating()" (click)="generateSample()">
+      {{ isGenerating() ? 'Generating...' : 'Generate sample image' }}
+    </app-button>
+  </div>
+
+  <p class="app-m-0" role="status" aria-live="polite" aria-atomic="true">
+    @if (isGenerating()) {
+      Generating your sample image...
+    } @else if (errorMessage()) {
+      {{ errorMessage() }}
+    } @else if (previewUrl()) {
+      Your sample image is ready.
+    }
+  </p>
+
+  @if (previewUrl(); as url) {
+    <img class="preview" [src]="url" alt="Generated sample image" width="1200" height="630" />
+  }
+</div>

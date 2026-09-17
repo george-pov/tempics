@@ -159,8 +159,9 @@ workflow parses `UI_APP_CONFIG_JSON`, adds `functionKey` from
 It also copies the standalone `404.html` error page.
 Azure CLI uploads the directory to `$web` with Azure login, overwrite enabled,
 and `Cache-Control: no-store`; it infers asset MIME types from their extensions.
-Two explicit HTML uploads publish the same entry page at `component-lab` and
-`component-lab/index.html`. See the [Storage hosting contract](ui-storage.md).
+Explicit HTML uploads publish the same entry page at `image-generator`,
+`image-generator/index.html`, `component-lab`, and `component-lab/index.html`. See the
+[Storage hosting contract](ui-storage.md).
 
 Only the UI configuration step receives `AZURE_FUNCTION_KEY`; build and API
 deployment do not use it. The frontend sends it as `x-functions-key` on sample

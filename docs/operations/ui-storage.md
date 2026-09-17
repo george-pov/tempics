@@ -11,8 +11,9 @@ environment URLs in local configuration or deployment notes.
 
 - `$web` contains public compiled UI assets and public dev `config.json`.
 - The index document is `index.html`; the error document is `404.html`.
-- Known route `/component-lab` has an explicit entry blob and a directory
-  `index.html`, copied from the root entry page. Keep these aligned on deployment.
+- Known routes `/image-generator` and `/component-lab` each have an explicit entry blob
+  and a directory `index.html`, copied from the root entry page. Keep these
+  aligned on deployment.
 - Missing assets and configuration return HTTP 404. The error page does not load
   Angular. Storage has no general SPA rewrite configuration; add entry blobs for
   future routes or design a separate routing layer when needed.
@@ -51,10 +52,10 @@ repeatable UI publication. It implements this sequence:
 1. Install locked dependencies and build the UI.
 2. Merge `AZURE_FUNCTION_KEY` into `UI_APP_CONFIG_JSON` as `functionKey` and
    write `config.json` in the compiled output.
-3. Include `404.html` and the current route entry copies for Component Lab.
+3. Include `404.html` and the current route entry copies for Image Generator and Component Lab.
 4. Upload the compiled directory to `$web` using Azure login and a scoped identity.
 5. Let Azure CLI infer asset content types and explicitly set `text/html` for
-   Component Lab entries. Set `Cache-Control: no-store` on all uploads.
+   Image Generator and Component Lab entries. Set `Cache-Control: no-store` on all uploads.
 
 Successful Azure CLI completion is the deployment result. The workflow does not
 run tests, hash checks, HTTP probes, or browser startup checks.

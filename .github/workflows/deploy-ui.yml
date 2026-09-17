@@ -67,6 +67,6 @@ jobs:
           AZURE_STORAGE_ACCOUNT: ${{ vars.AZURE_UI_STORAGE }}
         run: |
           az storage blob upload-batch --auth-mode login --destination '$web' --source dist/tempics/browser --overwrite true --content-cache-control no-store --only-show-errors --output none
-          for route in component-lab component-lab/index.html; do
+          for route in image-generator image-generator/index.html component-lab component-lab/index.html; do
             az storage blob upload --auth-mode login --container-name '$web' --name "$route" --file dist/tempics/browser/index.html --overwrite true --content-type text/html --content-cache-control no-store --only-show-errors --output none
           done

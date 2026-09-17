@@ -42,6 +42,37 @@ components belong under `shared/`. Persistent application chrome belongs under
 `layout/`. Create folders when the first real consumer needs them; do not add
 empty scaffolding.
 
+## Application Layout
+
+`AppLayout` in `layout/app-layout/` is the parent route for Home, Image Generator,
+and Component Lab. It owns the linked Tempics brand, primary navigation, and a single main
+landmark with the shared content width and responsive page padding. Pages stay
+lazy loaded through its child router outlet and provide their own heading and
+content without adding another `main` or outer `app-container`.
+
+Primary links identify the current page visually and through `aria-current`.
+Navigation wraps on narrow screens. A keyboard skip link focuses the content;
+subsequent page activations move focus there while initial loading preserves
+browser focus. Each page route supplies a document title. The shell has no
+authentication provider or API dependency.
+
+## Simulated Sign-In Flow
+
+Opening `/` shows the home page with a single Sign in button. The shared
+header shows the brand; primary navigation and Sign out appear only in signed-in
+mode. Clicking Sign in switches the in-memory `DemoSession` into signed-in mode
+and opens `/image-generator`, which contains the sample image generator. Sign out clears
+the mode and returns to `/`, destroying the generator and releasing its preview.
+
+The route guards under `shared/session/` redirect signed-out visits to `/image-generator`
+back to `/`, and signed-in visits to `/` back to `/image-generator`. Refreshing or opening
+a new tab starts signed out; the simulation stores nothing in browser storage.
+`/component-lab` remains directly accessible in either mode.
+
+This is presentation state only: it creates no user identity, credentials,
+tokens, or API permissions. Real Entra authentication and per-user authorization
+remain separate work. The sample API request contract is unchanged.
+
 ## Responsibilities
 
 The UI owns:

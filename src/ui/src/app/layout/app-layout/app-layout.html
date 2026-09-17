@@ -1,0 +1,30 @@
+<a class="skip-link" href="#main-content" (click)="skipToContent($event)">Skip to content</a>
+
+<header class="header">
+  <div class="app-container header-row">
+    <a class="brand" [routerLink]="session.isSignedIn() ? '/image-generator' : '/'" aria-label="Tempics home">
+      <span class="mark" aria-hidden="true">T</span>
+      <span>Tempics</span>
+    </a>
+    @if (session.isSignedIn()) {
+      <div class="navigation">
+        <nav aria-label="Primary navigation">
+          @for (item of navItems; track item.link) {
+            <a
+              class="nav-link"
+              [routerLink]="item.link"
+              routerLinkActive="is-active"
+              [routerLinkActiveOptions]="activeMatch"
+              ariaCurrentWhenActive="page"
+            >{{ item.label }}</a>
+          }
+        </nav>
+        <app-button (click)="signOut()">Sign out</app-button>
+      </div>
+    }
+  </div>
+</header>
+
+<main #content id="main-content" class="app-container content" tabindex="-1" aria-label="Page content">
+  <router-outlet (activate)="pageActivated()" />
+</main>

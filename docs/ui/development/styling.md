@@ -25,6 +25,8 @@ Tempics uses SCSS for application and component styles.
 
 ## Layout
 
+- Routed pages use `AppLayout` for the outer content container, page padding,
+  and main landmark. Put page content inside it without repeating those wrappers.
 - Use `.app-container` for centered content up to 72rem, with 1rem horizontal
   padding increasing to 2rem at 768px.
 - Use `.app-grid` for a 12-column grid. Direct children span all 12 columns by

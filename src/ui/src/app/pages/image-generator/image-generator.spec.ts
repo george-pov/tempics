@@ -1,10 +1,10 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Subject } from 'rxjs';
-import { Home } from './home';
+import { ImageGenerator } from './image-generator';
 import { SampleRenderApi } from './sample-render-api';
 
-describe('Home', () => {
-  let fixture: ComponentFixture<Home>;
+describe('ImageGenerator', () => {
+  let fixture: ComponentFixture<ImageGenerator>;
   let response: Subject<Blob>;
   let renderSample: ReturnType<typeof vi.fn>;
   let createUrl: ReturnType<typeof vi.fn>;
@@ -31,7 +31,7 @@ describe('Home', () => {
     TestBed.configureTestingModule({
       providers: [{ provide: SampleRenderApi, useValue: { renderSample } }],
     });
-    fixture = TestBed.createComponent(Home);
+    fixture = TestBed.createComponent(ImageGenerator);
     await fixture.whenStable();
   });
 

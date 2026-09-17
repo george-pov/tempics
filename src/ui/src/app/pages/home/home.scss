@@ -1,9 +1,7 @@
-@use 'src/styles/mixins' as app;
+@use 'src/styles/variables' as *;
 
-@include app.page-host;
-
-.preview {
-  display: block;
-  max-inline-size: 100%;
-  block-size: auto;
+:host {
+  display: flex;
+  justify-content: center;
+  padding-block: $app-space-12;
 }
