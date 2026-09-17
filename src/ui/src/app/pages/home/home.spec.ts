@@ -10,7 +10,7 @@ describe('Home', () => {
   let createUrl: ReturnType<typeof vi.fn>;
   let revokeUrl: ReturnType<typeof vi.fn>;
   const png = new Blob(['sample'], { type: 'image/png' });
-  const errorText = 'Could not generate the sample image. Try again.';
+  const errorFeedback = /could not generate.*try again/i;
 
   beforeEach(async () => {
     response = new Subject<Blob>();
@@ -68,25 +68,20 @@ describe('Home', () => {
   it('waits for activation, prevents overlapping requests, and displays the returned image', async () => {
     expect(preview()).toBeNull();
     expect(renderSample).not.toHaveBeenCalled();
-    expect(button().textContent?.trim()).toBe('Generate sample image');
     button().click();
     // The signal guard also protects clicks before disabled state reaches the DOM.
     button().click();
     await fixture.whenStable();
     expect(renderSample).toHaveBeenCalledOnce();
     expect(button().disabled).toBe(true);
-    expect(button().textContent?.trim()).toBe('Generating...');
     expect(status()).toContain('Generating');
     response.next(png);
     response.complete();
     await fixture.whenStable();
     expect(button().disabled).toBe(false);
     expect(preview()?.getAttribute('src')).toBe('blob:first');
-    expect(preview()?.alt).toBe('Generated sample image');
-    expect(
-      button().compareDocumentPosition(preview()!) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).not.toBe(0);
-    expect(status()).toBe('Your sample image is ready.');
+    expect(preview()?.alt.trim()).toBeTruthy();
+    expect(status()).toMatch(/ready/i);
   });
 
   it('keeps the previous preview during refresh and releases it on replacement and destruction', async () => {
@@ -109,13 +104,14 @@ describe('Home', () => {
     button().click();
     response.error(new Error('private backend details'));
     await fixture.whenStable();
-    expect(status()).toBe(errorText);
+    expect(status()).toMatch(errorFeedback);
+    expect(fixture.nativeElement.textContent).not.toContain('private backend details');
     expect(preview()).toBeNull();
     expect(button().disabled).toBe(false);
     response = new Subject<Blob>();
     button().click();
     await fixture.whenStable();
-    expect(status()).not.toContain(errorText);
+    expect(status()).not.toMatch(errorFeedback);
     response.next(png);
     response.complete();
     await fixture.whenStable();
@@ -128,7 +124,7 @@ describe('Home', () => {
     button().click();
     response.error(new Error('offline'));
     await fixture.whenStable();
-    expect(status()).toBe(errorText);
+    expect(status()).toMatch(errorFeedback);
     expect(preview()?.getAttribute('src')).toBe('blob:first');
     expect(revokeUrl).not.toHaveBeenCalled();
   });
@@ -141,7 +137,7 @@ describe('Home', () => {
     response.next(blob);
     response.complete();
     await fixture.whenStable();
-    expect(status()).toBe(errorText);
+    expect(status()).toMatch(errorFeedback);
     expect(button().disabled).toBe(false);
     expect(createUrl).not.toHaveBeenCalled();
   });
@@ -155,7 +151,7 @@ describe('Home', () => {
     button().click();
     response.next(png);
     await fixture.whenStable();
-    expect(status()).toBe(errorText);
+    expect(status()).toMatch(errorFeedback);
     expect(preview()?.getAttribute('src')).toBe('blob:first');
     expect(revokeUrl).not.toHaveBeenCalled();
   });

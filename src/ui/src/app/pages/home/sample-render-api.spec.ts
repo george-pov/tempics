@@ -32,11 +32,8 @@ describe('SampleRenderApi', () => {
     http.verify();
   });
 
-  it.each([
-    { environment: 'local', apiBaseUrl: 'http://localhost:7159/api' },
-    { environment: 'dev', apiBaseUrl: 'https://dev.example.test/api' },
-    { environment: 'prod', apiBaseUrl: 'https://prod.example.test/prefix/api' },
-  ])('posts directly using $environment settings without credentials', (config) => {
+  it('posts to the configured path prefix and returns the PNG without credentials', () => {
+    const config = { environment: 'prod', apiBaseUrl: 'https://prod.example.test/prefix/api' };
     TestBed.configureTestingModule({
       providers: [
         provideHttpClient(),

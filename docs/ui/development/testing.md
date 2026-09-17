@@ -17,6 +17,14 @@ than Angular or browser implementation details.
   parameters, and image dimensions.
 - Verify loading, success, empty, validation, forbidden, and failure states for
   behavior that exposes them.
+- Cover each major behavior at its owning layer and keep one integrated happy
+  path through the real app shell, route, and API client with mocked HTTP.
+  Do not repeat every lower-level failure case in page or startup tests.
+- Keep shared-control behavior in the control's tests. Component Lab examples
+  need a route smoke test, not duplicate tests of control behavior or demo copy.
+- Prefer assertions about actions, state, accessible feedback, and results over
+  exact incidental wording or DOM order. Keep cheap validation tables when each
+  input protects an app-owned rule; fewer reported cases is not itself a goal.
 
 ## API Client Tests
 
