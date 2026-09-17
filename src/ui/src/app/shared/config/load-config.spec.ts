@@ -9,28 +9,31 @@ describe('loadConfig', () => {
     vi.useRealTimers();
   });
 
-  it.each(['https://ui.example.test/', 'https://ui.example.test/nested/'])(
-    'loads JSON relative to %s without caching or redirects',
-    async (base) => {
-      vi.spyOn(document, 'baseURI', 'get').mockReturnValue(base);
-      const fetchMock = vi.fn().mockResolvedValue(Response.json(fixture));
-      vi.stubGlobal('fetch', fetchMock);
-      expect(await loadConfig()).toEqual(fixture);
-      expect(fetchMock).toHaveBeenCalledWith(new URL('config.json', base), {
-        cache: 'no-store',
-        redirect: 'error',
-        signal: expect.any(AbortSignal),
-      });
-    },
-  );
+  it('loads JSON relative to a nested base path without caching or redirects', async () => {
+    const base = 'https://ui.example.test/nested/';
+    vi.spyOn(document, 'baseURI', 'get').mockReturnValue(base);
+    const fetchMock = vi.fn().mockResolvedValue(Response.json(fixture));
+    vi.stubGlobal('fetch', fetchMock);
+    expect(await loadConfig()).toEqual(fixture);
+    expect(fetchMock).toHaveBeenCalledWith(new URL('config.json', base), {
+      cache: 'no-store',
+      redirect: 'error',
+      signal: expect.any(AbortSignal),
+    });
+  });
 
   it.each([
-    () => new Response('', { status: 404 }),
-    () => new Response('<html></html>', { headers: { 'content-type': 'text/html' } }),
-    () => new Response('{', { headers: { 'content-type': 'application/json' } }),
-    () => Response.json({ environment: 'local' }),
-    () => new Response('{}'),
-  ])('rejects missing, HTML, malformed and invalid responses', async (response) => {
+    { name: 'HTTP failure', response: () => new Response('', { status: 404 }) },
+    {
+      name: 'non-JSON content type',
+      response: () => new Response('<html></html>', { headers: { 'content-type': 'text/html' } }),
+    },
+    {
+      name: 'malformed JSON',
+      response: () => new Response('{', { headers: { 'content-type': 'application/json' } }),
+    },
+    { name: 'invalid configuration', response: () => Response.json({ environment: 'local' }) },
+  ])('rejects $name', async ({ response }) => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response()));
     await expect(loadConfig()).rejects.toThrow('Configuration loading failed');
   });

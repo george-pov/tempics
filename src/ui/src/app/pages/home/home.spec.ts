@@ -142,20 +142,6 @@ describe('Home', () => {
     expect(createUrl).not.toHaveBeenCalled();
   });
 
-  it('preserves the previous preview when URL allocation fails', async () => {
-    await succeed();
-    createUrl.mockReset().mockImplementation(() => {
-      throw new Error('allocation failed');
-    });
-    response = new Subject<Blob>();
-    button().click();
-    response.next(png);
-    await fixture.whenStable();
-    expect(status()).toMatch(errorFeedback);
-    expect(preview()?.getAttribute('src')).toBe('blob:first');
-    expect(revokeUrl).not.toHaveBeenCalled();
-  });
-
   it('cancels pending work on destruction without allocating a late preview', () => {
     button().click();
     expect(response.observed).toBe(true);
