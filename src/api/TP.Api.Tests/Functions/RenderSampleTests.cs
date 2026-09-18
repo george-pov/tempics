@@ -88,7 +88,7 @@ public sealed class RenderSampleTests
     }
 
     [Fact]
-    public void RunAsync_Trigger_UsesPostSampleRouteAndFunctionAuth()
+    public void RunAsync_Trigger_UsesPostSampleRouteAndWorkerAuth()
     {
         var method = typeof(RenderSample).GetMethod(nameof(RenderSample.RunAsync));
         Assert.NotNull(method);
@@ -102,7 +102,7 @@ public sealed class RenderSampleTests
         Assert.NotNull(methods);
         Assert.Equal("post", Assert.Single(methods), ignoreCase: true);
         Assert.Equal("renders/sample", trigger.Route);
-        Assert.Equal(AuthorizationLevel.Function, trigger.AuthLevel);
+        Assert.Equal(AuthorizationLevel.Anonymous, trigger.AuthLevel);
     }
 
     private static RenderSample CreateFunction(IAxamlRenderer renderer)

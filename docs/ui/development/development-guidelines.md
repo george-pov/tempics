@@ -94,9 +94,9 @@ rules decide when local guidance is more specific.
   interceptors.
 - Keep base URLs and other deployment-specific public values in typed runtime
   configuration, not page services.
-- The sample API's optional runtime `functionKey` is deliberately public; see
-  [runtime configuration](configuration.md). Keep all other secrets out of
-  browser configuration and bundles, and all real keys out of source and logs.
+- Use the bearer interceptor for API authentication. Keep secrets and tokens out
+  of browser configuration, bundles, source, and logs; see
+  [runtime configuration](configuration.md).
 - Keep API requests, responses, and mapping typed and update them with the
   backend contract.
 

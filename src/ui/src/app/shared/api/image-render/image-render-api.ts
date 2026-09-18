@@ -11,7 +11,6 @@ export class ImageRenderApi {
   renderSample(): Observable<Blob> {
     return this.http.post(`${this.config.apiBaseUrl}/renders/sample`, null, {
       responseType: 'blob',
-      headers: this.config.functionKey ? { 'x-functions-key': this.config.functionKey } : undefined,
     });
   }
 }

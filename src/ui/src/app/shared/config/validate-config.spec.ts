@@ -2,29 +2,13 @@ import { validateConfig } from './validate-config';
 import { CONFIG_FIXTURE } from './config-fixture';
 
 describe('validateConfig', () => {
-  it('preserves the optional Function key in frozen runtime settings', () => {
-    const config = validateConfig({
-      ...CONFIG_FIXTURE,
-      environment: 'dev',
-      apiBaseUrl: 'https://dev.example.test/api/',
-      functionKey: 'fixture-function-key==',
-    });
-    expect(config.apiBaseUrl).toBe('https://dev.example.test/api');
-    expect(config.functionKey).toBe('fixture-function-key==');
-    expect(Object.isFrozen(config)).toBe(true);
-  });
-
-  it.each([
-    { name: 'empty', value: '' },
-    { name: 'header injection', value: 'key\r\ninjected-header' },
-    { name: 'wrong type', value: 123 },
-  ])('rejects a Function key with $name', ({ value: functionKey }) => {
+  it('rejects obsolete Function key configuration', () => {
     expect(() =>
       validateConfig({
         ...CONFIG_FIXTURE,
         environment: 'dev',
         apiBaseUrl: 'https://dev.example.test/api',
-        functionKey,
+        functionKey: 'fixture-key',
       }),
     ).toThrow('Invalid configuration shape');
   });

@@ -10,6 +10,11 @@ product rules and application behavior remain independent of Azure Functions.
 dependency injection, HTTP triggers, runtime configuration, and telemetry
 registration. Keep endpoint classes thin as product behavior is introduced.
 
+The host validates Entra bearer tokens through `Microsoft.Identity.Web` and
+`BearerTokenMiddleware`. Every HTTP Function requires the delegated
+`Images.Render` scope before endpoint execution. See
+[authentication](authentication.md) for configuration and deployment ordering.
+
 ## Dependency Direction
 
 Backend dependencies point inward:

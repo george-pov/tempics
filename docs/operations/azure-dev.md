@@ -43,8 +43,10 @@ reference; no credentials are parameters or deployment outputs.
 
 Bicep owns the Function app-settings collection. Add future required settings
 to the template before reapplying it. The template provisions infrastructure;
-publishing code is a separate command. The current sample endpoint uses
-Function-key authorization. It does not implement Entra user sign-in.
+publishing code is a separate command. The sample endpoint validates Entra
+bearer tokens and requires the delegated `Images.Render` scope. The four
+`Auth__*` app settings come from Bicep's public `auth` parameter. See
+[API authentication](../api/authentication.md).
 
 UI storage uses Standard_LRS StorageV2, HTTPS/TLS 1.2, public website network
 access, and Azure login for management/uploads. Shared Key, ordinary anonymous
@@ -92,6 +94,23 @@ Use `az login` first if a login is needed. Confirm the account output is the
 intended subscription. Keep the variables above aligned with the parameter
 file if you change the region or names. Function App and storage names must
 be globally available.
+
+Set `TP_API_AUTH_JSON` before using `dev.bicepparam`. With the API's ignored
+local settings configured for this environment, copy only its public auth values:
+
+```powershell
+$apiSettings = (Get-Content src/api/TP.AzureFunctions/local.settings.json -Raw | ConvertFrom-Json).Values
+$env:TP_API_AUTH_JSON = @{
+    instance = $apiSettings.Auth__Instance
+    tenantId = $apiSettings.Auth__TenantId
+    clientId = $apiSettings.Auth__ClientId
+    issuer = $apiSettings.Auth__Issuer
+} | ConvertTo-Json -Compress
+```
+
+These identify the External ID tenant and API registration, not the deployment
+identity. Configure them before deploying the bearer-protected API. Never put
+real tenant authority URLs or IDs in tracked parameter files.
 
 ## 1. Compile And Preview
 
@@ -230,15 +249,16 @@ if ($anonymous.StatusCode -notin @(401, 403)) {
 }
 ```
 
-For the authorized test, obtain the `RenderSample` Function key through your
-approved credential access process. Enter it at the secure prompt below;
+For the authorized test, obtain an Entra API access token for the signed-in
+user with the delegated `Images.Render` scope. Enter it at the secure prompt below;
 never paste it into a command, URL, file, screenshot, or shell transcript.
-The request sends it only in the `x-functions-key` header.
+The request sends it only in the `Authorization` header. Do not use an ID token,
+Graph token, or Function key.
 
 ```powershell
-$functionKey = Read-Host 'RenderSample Function key' -AsSecureString
-$keyValue = [System.Net.NetworkCredential]::new('', $functionKey).Password
-$requestHeaders = @{ 'x-functions-key' = $keyValue }
+$accessToken = Read-Host 'Entra API access token' -AsSecureString
+$tokenValue = [System.Net.NetworkCredential]::new('', $accessToken).Password
+$requestHeaders = @{ Authorization = 'Bearer ' + $tokenValue }
 $pngPath = Join-Path $packageDir 'sample.png'
 try {
     $result = Invoke-WebRequest -Uri $renderUrl -Method Post -Headers $requestHeaders -OutFile $pngPath -PassThru
@@ -256,9 +276,9 @@ try {
 }
 finally {
     $requestHeaders.Clear()
-    $keyValue = $null
-    $functionKey.Dispose()
-    $functionKey = $null
+    $tokenValue = $null
+    $accessToken.Dispose()
+    $accessToken = $null
 }
 ```
 

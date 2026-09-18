@@ -20,9 +20,21 @@ dotnet test src/api/Tempics.slnx
 The solution contains `TP.Application`, `TP.Avalonia`, `TP.AzureFunctions`, and
 the `TP.Api.Tests` test project.
 
+If the configured Microsoft Testing Platform runner reports zero tests, invoke
+the xUnit executable directly. Release also avoids files held by a running
+Debug host:
+
+```powershell
+dotnet run --project src/api/TP.Api.Tests/TP.Api.Tests.csproj -c Release -- -noLogo
+```
+
 ## Local Functions Host
 
 Azure Functions Core Tools v4 is required:
+
+Configure the four `Auth__*` values in the ignored `local.settings.json` first;
+see [API authentication](../authentication.md). Local requests require a real
+Entra API access token, just like hosted requests.
 
 ```powershell
 Set-Location src/api/TP.AzureFunctions

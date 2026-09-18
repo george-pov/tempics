@@ -21,9 +21,8 @@ startup configuration.
 }
 ```
 
-`environment`, `apiBaseUrl`, and `auth` are required. Optional `functionKey` supplies
-the sample API's `x-functions-key` header. It must be a nonempty string of key
-characters (letters, digits, `_`, `+`, `/`, `=`, or `-`). Other fields are rejected.
+`environment`, `apiBaseUrl`, and `auth` are required. Other fields, including the
+obsolete `functionKey`, are rejected.
 `environment` is exactly `local`, `dev`, or
 `prod`. `apiBaseUrl` is an absolute HTTPS URL including the API prefix. Local
 configuration also permits HTTP on `localhost`, `127.0.0.1`, or `[::1]`.
@@ -34,9 +33,7 @@ Validation rejects missing/unknown fields, blank values, relative URLs,
 whitespace, backslashes, credentials, query strings, fragments, and unsupported
 schemes. Trailing slashes are removed while preserving the API path prefix.
 `ImageRenderApi` appends `/renders/sample` and sends an empty POST for a PNG
-Blob. When `functionKey` is present, it sends that value as `x-functions-key`.
-When absent, it omits the header, preserving local Core Tools use. The bearer
-interceptor adds `Authorization: Bearer <access-token>` after acquiring the
+Blob. The bearer interceptor adds `Authorization: Bearer <access-token>` after acquiring the
 configured API scope for the signed-in account. Cookie credentials stay disabled.
 
 All five `auth` fields are required. `clientId` is the SPA application ID GUID.
@@ -92,11 +89,9 @@ Production builds exclude `config.json` and `config.json.*` even when local
 settings exist. Both hosted dev and prod use the optimized production build.
 
 Store `environment`, `apiBaseUrl`, and the complete `auth` object as JSON in
-GitHub Environment variable `UI_APP_CONFIG_JSON`. Set the existing sample Function key as Environment secret
-`AZURE_FUNCTION_KEY`. The workflow merges it into JSON as `functionKey` using
-inline Node code and writes `config.json` after the build. A missing secret fails
-that step. The key is passed through the process environment, never a shell
-argument or log message.
+GitHub Environment variable `UI_APP_CONFIG_JSON`. The workflow parses it with
+inline Node code, removes any obsolete `functionKey`, and writes `config.json`
+after the build. No Function key or client secret is required.
 
 For a local copy of the production build, from `src/ui/`:
 
@@ -127,8 +122,9 @@ required on the enterprise application, assign each permitted user there.
 Register `Tempics API - Dev` in the same tenant to define the token audience,
 request v2 access tokens, and expose the delegated `Images.Render` scope.
 Grant that scope to the SPA with administrator consent. This API registration
-allows Entra to issue a Tempics access token; it does not configure the running
-Function App to validate it. The frontend needs no Microsoft Graph permission.
+allows Entra to issue a Tempics access token. Configure the API's matching
+[bearer validation settings](../../api/authentication.md) separately.
+The frontend needs no Microsoft Graph permission.
 
 Keep real tenant IDs, application IDs, authority URLs, and deployment addresses
 in environment configuration. See Microsoft's guidance for
@@ -137,24 +133,21 @@ and [linking a user flow](https://learn.microsoft.com/en-us/graph/api/authentica
 
 ## Hosting And API Boundary
 
-Browser configuration is public. The deployment deliberately exposes the
-injected Function key to site visitors, who can reuse it outside the UI.
-This is shared-key access, not per-user authentication. Do not add other secrets,
+Browser configuration is public. Do not add secrets,
 access tokens, connection strings, or deployment credentials to the file.
 
 The [GitHub UI workflow](../../operations/github-dev.md#4-deploy) writes the selected
-Environment's `UI_APP_CONFIG_JSON` plus its `AZURE_FUNCTION_KEY` secret to
-`config.json` after the build, then
+Environment's `UI_APP_CONFIG_JSON` to `config.json` after the build, then
 uploads that directory. It relies on Azure upload success without running tests
-or hosted checks. The workflow parses JSON for injection; contract validation
+or hosted checks. The workflow parses JSON for publication; contract validation
 happens in the browser at startup.
 A valid URL can still target the wrong environment.
 
 Hosting must serve configuration as JSON with `Cache-Control: no-store`, avoid
 SPA fallback and redirects for missing config, and deliver a compatible
 application/config pair. Test these rules on the chosen host. Configure hosted
-API CORS to allow the UI origin and both `Authorization` and `x-functions-key`.
-The sample Function still needs its Function key; frontend sign-in does not
-establish API-side token validation or ownership enforcement. Preserve compatible
-application/configuration pairs for rollback. Before publishing this frontend,
-add `auth` to `UI_APP_CONFIG_JSON`; older JSON without it fails startup.
+API CORS to allow the UI origin and `Authorization`.
+Deploy the bearer-protected API with its matching Entra settings before this UI;
+the UI no longer sends a Function key. Local configuration must also omit
+`functionKey`. Future user-owned resources still need API ownership checks.
+Preserve compatible application/configuration pairs for recovery.

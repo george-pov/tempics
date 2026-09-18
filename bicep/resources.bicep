@@ -17,6 +17,8 @@ param maxInstances int
 @allowed([512, 2048, 4096])
 param instanceMemoryMb int
 
+param auth object
+
 var apiTags = union(baseTags, { Component: 'Api' })
 var monitoringTags = union(baseTags, { Component: 'Monitoring' })
 
@@ -117,6 +119,22 @@ resource functionApp 'Microsoft.Web/sites@2024-11-01' = {
     siteConfig: {
       minTlsVersion: '1.2'
       appSettings: [
+        {
+          name: 'Auth__Instance'
+          value: auth.instance
+        }
+        {
+          name: 'Auth__TenantId'
+          value: auth.tenantId
+        }
+        {
+          name: 'Auth__ClientId'
+          value: auth.clientId
+        }
+        {
+          name: 'Auth__Issuer'
+          value: auth.issuer
+        }
         {
           name: 'AzureWebJobsStorage__accountName'
           value: storage.name

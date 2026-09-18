@@ -13,6 +13,7 @@ Durable documentation for the backend API under `src/api/Tempics/`.
 ## Contents
 
 - Architecture: [`architecture.md`](architecture.md)
+- Entra bearer tokens and configuration: [`authentication.md`](authentication.md)
 - Development guidelines:
   [`development/development-guidelines.md`](development/development-guidelines.md)
 - Naming conventions:

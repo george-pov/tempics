@@ -139,11 +139,11 @@ The workflows require these six variables. Previously configured
 `AZURE_RESOURCE_GROUP`, `TP_ENV`, `TP_API_URL`, and `TP_UI_URL` variables are no
 longer consumed by the workflows.
 
-UI deployment also requires Environment secret `AZURE_FUNCTION_KEY`, containing
-the existing sample Function key. Deployment adds it as `functionKey` to the
-public `config.json`; site visitors can read and reuse that key. Keep the value
-out of source and logs. The empty prod Environment needs its own settings and
-key before deployment.
+UI deployment needs no Function key. Existing `AZURE_FUNCTION_KEY` secrets are
+no longer consumed. Configure the Function's four `Auth__*` settings and deploy
+the bearer-protected API before this UI; see
+[API authentication](../api/authentication.md). The empty prod Environment needs
+its own UI and API auth settings before deployment.
 
 ## 4. Deploy
 
@@ -166,8 +166,8 @@ packages the published directory and deploys it with remote build disabled.
 It does not run solution tests or call the protected sample endpoint.
 
 The UI uses Node 24 and npm 12 with `npm ci` and the production build. The
-workflow parses `UI_APP_CONFIG_JSON`, adds `functionKey` from
-`AZURE_FUNCTION_KEY`, and writes `config.json` with inline Node code.
+workflow parses `UI_APP_CONFIG_JSON`, removes any obsolete `functionKey`, and
+writes `config.json` with inline Node code.
 It also copies the standalone `404.html` error page.
 Azure CLI uploads the directory to `$web` with Azure login, overwrite enabled,
 and `Cache-Control: no-store`; it infers asset MIME types from their extensions.
@@ -175,12 +175,11 @@ Explicit HTML uploads publish the same entry page at `image-generator`,
 `image-generator/index.html`, `component-lab`, and `component-lab/index.html`. See the
 [Storage hosting contract](ui-storage.md).
 
-Only the UI configuration step receives `AZURE_FUNCTION_KEY`; build and API
-deployment do not use it. The frontend sends it as `x-functions-key` on sample
-render requests. Manual API CORS must allow the UI origin and that header.
-User authentication remains a separate responsibility.
+The frontend sends its Entra API access token in `Authorization: Bearer` on
+sample render requests. Manual API CORS must allow the UI origin and that header.
+The API validates the token and requires `Images.Render` before rendering.
 The browser's runtime config validator still enforces the public JSON contract
-at startup; deployment parses JSON for injection without running contract tests.
+at startup; deployment parses JSON for publication without running contract tests.
 
 ## Recovery
 

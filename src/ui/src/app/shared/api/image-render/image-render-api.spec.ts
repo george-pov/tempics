@@ -5,11 +5,10 @@ import { ImageRenderApi } from './image-render-api';
 import { CONFIG } from '../../config/config-token';
 
 describe('ImageRenderApi', () => {
-  it('sends the configured Function key in the header without putting it in the URL', () => {
+  it('posts a PNG request without a shared Function key', () => {
     const config = {
       environment: 'dev',
       apiBaseUrl: 'https://dev.example.test/api',
-      functionKey: 'fixture-function-key==',
     };
     TestBed.configureTestingModule({
       providers: [
@@ -23,9 +22,8 @@ describe('ImageRenderApi', () => {
 
     const request = http.expectOne(`${config.apiBaseUrl}/renders/sample`);
     expect(request.request.method).toBe('POST');
-    expect(request.request.headers.get('x-functions-key')).toBe(config.functionKey);
+    expect(request.request.headers.has('x-functions-key')).toBe(false);
     expect(request.request.headers.has('Authorization')).toBe(false);
-    expect(request.request.urlWithParams).not.toContain(config.functionKey);
     expect(request.request.body).toBeNull();
     expect(request.request.responseType).toBe('blob');
     request.flush(new Blob(['sample'], { type: 'image/png' }));

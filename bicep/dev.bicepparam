@@ -11,3 +11,4 @@ param insightsName = 'appi-tempics-api-dev'
 param workspaceName = 'log-tempics-dev'
 param maxInstances = 10
 param instanceMemoryMb = 2048
+param auth = json(readEnvironmentVariable('TP_API_AUTH_JSON'))

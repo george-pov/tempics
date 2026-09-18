@@ -7,10 +7,13 @@ using Microsoft.Extensions.Hosting;
 using OpenTelemetry;
 using TP.Application.Rendering;
 using TP.Avalonia.Rendering;
+using TP.AzureFunctions.Auth;
 
 var builder = FunctionsApplication.CreateBuilder(args);
 
 builder.ConfigureFunctionsWebApplication();
+builder.UseMiddleware<BearerTokenMiddleware>();
+builder.Services.AddApiAuth(builder.Configuration);
 
 builder.Services.AddTransient<RenderSampleHandler>();
 builder.Services.AddSingleton<IBundledTemplateSource, BundledTemplateSource>();

@@ -21,7 +21,7 @@ describe('bearerInterceptor', () => {
         provideHttpClientTesting(),
         {
           provide: CONFIG,
-          useValue: { ...CONFIG_FIXTURE, apiBaseUrl, functionKey: 'fixture-key' },
+          useValue: { ...CONFIG_FIXTURE, apiBaseUrl },
         },
         { provide: AuthSession, useValue: { acquireApiToken } },
       ],
@@ -31,12 +31,12 @@ describe('bearerInterceptor', () => {
 
   afterEach(() => http.verify());
 
-  it('sends a bearer token and preserves the Function key and PNG contract', async () => {
+  it('sends a bearer token and preserves the PNG contract without a Function key', async () => {
     const result = firstValueFrom(TestBed.inject(ImageRenderApi).renderSample());
     await Promise.resolve();
     const request = http.expectOne(`${apiBaseUrl}/renders/sample`);
     expect(request.request.headers.get('Authorization')).toBe('Bearer fixture-access-token');
-    expect(request.request.headers.get('x-functions-key')).toBe('fixture-key');
+    expect(request.request.headers.has('x-functions-key')).toBe(false);
     expect(request.request.urlWithParams).not.toContain('fixture');
     expect(request.request.method).toBe('POST');
     expect(request.request.body).toBeNull();

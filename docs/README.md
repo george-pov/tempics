@@ -20,6 +20,7 @@ artifacts out of this folder.
 
 - API documentation index: [`api/README.md`](api/README.md)
 - API architecture: [`api/architecture.md`](api/architecture.md)
+- API authentication: [`api/authentication.md`](api/authentication.md)
 - API development guidelines:
   [`api/development/development-guidelines.md`](api/development/development-guidelines.md)
 - API naming conventions:

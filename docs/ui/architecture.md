@@ -79,9 +79,9 @@ Other token failures fail the request without sending it or retrying indefinitel
 Only requests matching the API origin and path boundary receive the token.
 ID tokens are never used as API bearer tokens.
 
-Route guards control presentation. The sample Function still uses its existing
-Function-key boundary and does not validate these bearer tokens. API token
-validation and per-user authorization require separate backend implementation.
+Route guards control presentation. The API validates bearer tokens and requires
+the delegated `Images.Render` scope before rendering. Future user-owned resources
+also need ownership checks. See [API authentication](../api/authentication.md).
 
 ## Responsibilities
 
@@ -131,11 +131,9 @@ configuration is unavailable or invalid; every route requires it.
 
 API services make direct requests to the configured absolute `apiBaseUrl`.
 `ImageRenderApi` in `shared/api/image-render/` appends `/renders/sample` and
-preserves its empty POST/PNG Blob contract. If runtime settings contain
-`functionKey`, this request sends it as
-`x-functions-key`. Deployment injects that shared key into public configuration;
-it is visible to visitors and does not establish user identity. API CORS must
-allow the UI's exact origin, `Authorization`, and `x-functions-key`. See
+preserves its empty POST/PNG Blob contract. The bearer interceptor supplies the
+Entra access token; no Function key is required. API CORS must
+allow the UI's exact origin and `Authorization`. See
 [runtime configuration](development/configuration.md) for validation, local
 setup, packaging, and the separate hosted CORS/authentication requirements.
 

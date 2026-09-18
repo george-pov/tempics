@@ -43,6 +43,9 @@ param maxInstances int = 10
 @allowed([512, 2048, 4096])
 param instanceMemoryMb int = 2048
 
+@description('Public Entra API settings: instance, tenantId, clientId, and issuer. Supply from environment configuration.')
+param auth object
+
 var baseTags = {
   Application: 'Tempics'
   Environment: environmentName
@@ -72,6 +75,7 @@ module resources './resources.bicep' = {
     packageContainerName: 'app-package-${environmentName}'
     maxInstances: maxInstances
     instanceMemoryMb: instanceMemoryMb
+    auth: auth
   }
 }
 

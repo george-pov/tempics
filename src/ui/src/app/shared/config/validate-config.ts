@@ -10,7 +10,7 @@ export function validateConfig(value: unknown): RuntimeConfig {
     throw new Error('Invalid configuration shape');
   }
 
-  const { environment, apiBaseUrl, functionKey, auth } = value as RuntimeConfig;
+  const { environment, apiBaseUrl, auth } = value as RuntimeConfig;
   const authority = configUrl(auth.authority, false);
   const redirect = configUrl(auth.redirectUri, environment === 'local');
   const logout = configUrl(auth.postLogoutRedirectUri, environment === 'local');
@@ -53,7 +53,6 @@ export function validateConfig(value: unknown): RuntimeConfig {
   return Object.freeze({
     environment,
     apiBaseUrl: url.href.replace(/\/+$/, ''),
-    ...(functionKey === undefined ? {} : { functionKey }),
     auth: Object.freeze({
       ...auth,
       authority: authority.href.replace(/\/+$/, ''),

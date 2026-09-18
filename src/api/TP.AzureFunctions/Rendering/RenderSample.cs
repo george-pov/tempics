@@ -13,7 +13,8 @@ public sealed class RenderSample(
 {
     [Function("RenderSample")]
     public async Task<IActionResult> RunAsync(
-        [HttpTrigger(AuthorizationLevel.Function, "post", Route = "renders/sample")]
+        // BearerTokenMiddleware enforces Entra authentication instead of a Functions key.
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "renders/sample")]
         HttpRequest request,
         CancellationToken cancellationToken)
     {

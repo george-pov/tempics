@@ -6,7 +6,6 @@
   "properties": {
     "environment": { "enum": ["local", "dev", "prod"] },
     "apiBaseUrl": { "type": "string", "minLength": 1 },
-    "functionKey": { "type": "string", "minLength": 1, "pattern": "^[A-Za-z0-9_+/=-]+$" },
     "auth": {
       "type": "object",
       "additionalProperties": false,
