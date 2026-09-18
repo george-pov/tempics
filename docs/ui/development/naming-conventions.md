@@ -32,8 +32,10 @@ shared/components/
 shared/config/
 ```
 
-Keep feature-owned types and services near their page flow. Move them to
-`shared/` only after more than one feature owns the dependency.
+Keep feature-owned state, types, and workflow services near their page flow.
+Move them to `shared/` when multiple features use them. Keep API clients and
+transport types under `shared/api/<domain>/`, such as
+`shared/api/image-render/image-render-api.ts` for `ImageRenderApi`.
 
 ## Components
 

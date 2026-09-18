@@ -88,7 +88,8 @@ rules decide when local guidance is more specific.
 - Give each service one responsibility and a clear owner.
 - Use `providedIn: 'root'` for application-wide singleton services.
 - Keep page-flow services near the page that owns them. Move a service to
-  `shared/` only when multiple flows use it.
+  `shared/` when multiple flows use it. API clients and transport types belong
+  under `shared/api/<domain>/`, independently of their current consumer count.
 - Configure `HttpClient` through application providers and prefer functional
   interceptors.
 - Keep base URLs and other deployment-specific public values in typed runtime

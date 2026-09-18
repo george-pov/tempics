@@ -32,6 +32,7 @@ src/ui/src/app/
     render/
   shared/
     api/
+      image-render/
     auth/
     components/
     config/
@@ -110,14 +111,19 @@ authorization or rendering policy in the browser.
 
 Isolate HTTP access behind focused typed services. Components must not build
 transport payloads ad hoc or contain reusable request and response mapping.
+Keep API clients and their transport types under `shared/api/`, grouped by
+domain. Each client owns a focused backend capability independently of its
+consuming pages. Keep page workflow and interaction state with the owning page.
+Create domain folders as their clients are introduced.
 Before Angular bootstrap, native fetch loads and validates `config.json`
 relative to the document base URL. Application providers receive its frozen
 `RuntimeConfig` through `CONFIG`. Startup fails with safe reload feedback when
 configuration is unavailable or invalid; every route requires it.
 
 API services make direct requests to the configured absolute `apiBaseUrl`.
-`SampleRenderApi` appends `/renders/sample` and preserves its empty POST/PNG Blob
-contract. If runtime settings contain `functionKey`, this request sends it as
+`ImageRenderApi` in `shared/api/image-render/` appends `/renders/sample` and
+preserves its empty POST/PNG Blob contract. If runtime settings contain
+`functionKey`, this request sends it as
 `x-functions-key`. Deployment injects that shared key into public configuration;
 it is visible to visitors and does not establish user identity. API CORS must
 allow the UI's exact origin and this header. See

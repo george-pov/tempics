@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Subject } from 'rxjs';
 import { ImageGenerator } from './image-generator';
-import { SampleRenderApi } from './sample-render-api';
+import { ImageRenderApi } from '../../shared/api/image-render/image-render-api';
 
 describe('ImageGenerator', () => {
   let fixture: ComponentFixture<ImageGenerator>;
@@ -29,7 +29,7 @@ describe('ImageGenerator', () => {
       value: revokeUrl,
     });
     TestBed.configureTestingModule({
-      providers: [{ provide: SampleRenderApi, useValue: { renderSample } }],
+      providers: [{ provide: ImageRenderApi, useValue: { renderSample } }],
     });
     fixture = TestBed.createComponent(ImageGenerator);
     await fixture.whenStable();

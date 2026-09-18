@@ -1,10 +1,10 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
-import { CONFIG } from '../../shared/config/config-token';
+import { CONFIG } from '../../config/config-token';
 
 @Injectable({ providedIn: 'root' })
-export class SampleRenderApi {
+export class ImageRenderApi {
   private readonly http = inject(HttpClient);
   private readonly config = inject(CONFIG);
 

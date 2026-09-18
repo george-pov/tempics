@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { finalize, tap } from 'rxjs';
 import { Button } from '../../shared/components/button/button';
-import { SampleRenderApi } from './sample-render-api';
+import { ImageRenderApi } from '../../shared/api/image-render/image-render-api';
 
 @Component({
   selector: 'app-image-generator',
@@ -12,7 +12,7 @@ import { SampleRenderApi } from './sample-render-api';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ImageGenerator {
-  private readonly api = inject(SampleRenderApi);
+  private readonly api = inject(ImageRenderApi);
   private readonly destroyRef = inject(DestroyRef);
 
   protected readonly isGenerating = signal(false);

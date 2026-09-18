@@ -26,7 +26,7 @@ spellings. The environment label never changes server authorization.
 Validation rejects missing/unknown fields, blank values, relative URLs,
 whitespace, backslashes, credentials, query strings, fragments, and unsupported
 schemes. Trailing slashes are removed while preserving the API path prefix.
-`SampleRenderApi` appends `/renders/sample` and sends an empty POST for a PNG
+`ImageRenderApi` appends `/renders/sample` and sends an empty POST for a PNG
 Blob. When `functionKey` is present, it sends that value as `x-functions-key`.
 When absent, it omits the header, preserving local Core Tools use. It does not
 send an Authorization header or enable cookie credentials.

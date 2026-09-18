@@ -1,10 +1,10 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
-import { SampleRenderApi } from './sample-render-api';
-import { CONFIG } from '../../shared/config/config-token';
+import { ImageRenderApi } from './image-render-api';
+import { CONFIG } from '../../config/config-token';
 
-describe('SampleRenderApi', () => {
+describe('ImageRenderApi', () => {
   it('sends the configured Function key in the header without putting it in the URL', () => {
     const config = {
       environment: 'dev',
@@ -19,7 +19,7 @@ describe('SampleRenderApi', () => {
       ],
     });
     const http = TestBed.inject(HttpTestingController);
-    TestBed.inject(SampleRenderApi).renderSample().subscribe();
+    TestBed.inject(ImageRenderApi).renderSample().subscribe();
 
     const request = http.expectOne(`${config.apiBaseUrl}/renders/sample`);
     expect(request.request.method).toBe('POST');
@@ -44,7 +44,7 @@ describe('SampleRenderApi', () => {
     const http = TestBed.inject(HttpTestingController);
     const receive = vi.fn();
     const png = new Blob(['sample'], { type: 'image/png' });
-    TestBed.inject(SampleRenderApi).renderSample().subscribe(receive);
+    TestBed.inject(ImageRenderApi).renderSample().subscribe(receive);
 
     const request = http.expectOne(`${config.apiBaseUrl}/renders/sample`);
     expect(request.request.method).toBe('POST');
