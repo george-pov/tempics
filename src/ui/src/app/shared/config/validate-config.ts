@@ -10,7 +10,13 @@ export function validateConfig(value: unknown): RuntimeConfig {
     throw new Error('Invalid configuration shape');
   }
 
-  const { environment, apiBaseUrl, functionKey } = value as RuntimeConfig;
+  const { environment, apiBaseUrl, functionKey, auth } = value as RuntimeConfig;
+  const authority = configUrl(auth.authority, false);
+  const redirect = configUrl(auth.redirectUri, environment === 'local');
+  const logout = configUrl(auth.postLogoutRedirectUri, environment === 'local');
+  if (redirect.origin !== logout.origin || redirect.pathname !== '/' || logout.pathname !== '/') {
+    throw new Error('Auth redirects must use the application home URL');
+  }
   // URL accepts some ambiguous spellings; reject them before canonicalization.
   if (!/^https?:\/\//i.test(apiBaseUrl) || /[\s\\?#]/u.test(apiBaseUrl)) {
     throw new Error('Invalid apiBaseUrl');
@@ -31,11 +37,11 @@ export function validateConfig(value: unknown): RuntimeConfig {
     /^\[::ffff:7f[0-9a-f]{2}:/.test(host);
   const localHttp =
     environment === 'local' && (host === 'localhost' || host === '127.0.0.1' || host === '[::1]');
-  const authority = apiBaseUrl.slice(apiBaseUrl.indexOf('//') + 2).split('/')[0];
+  const apiAuthority = apiBaseUrl.slice(apiBaseUrl.indexOf('//') + 2).split('/')[0];
   if (
-    !authority ||
+    !apiAuthority ||
     !url.hostname ||
-    authority.includes('@') ||
+    apiAuthority.includes('@') ||
     url.username ||
     url.password ||
     (url.protocol !== 'https:' && !(url.protocol === 'http:' && localHttp)) ||
@@ -48,5 +54,24 @@ export function validateConfig(value: unknown): RuntimeConfig {
     environment,
     apiBaseUrl: url.href.replace(/\/+$/, ''),
     ...(functionKey === undefined ? {} : { functionKey }),
+    auth: Object.freeze({
+      ...auth,
+      authority: authority.href.replace(/\/+$/, ''),
+      redirectUri: redirect.href,
+      postLogoutRedirectUri: logout.href,
+      apiScopes: Object.freeze([...auth.apiScopes]),
+    }),
   });
+}
+
+function configUrl(value: string, allowLocal: boolean): URL {
+  if (!/^https?:\/\/[^/]/i.test(value) || /[\s\\?#@]/u.test(value)) {
+    throw new Error('Invalid authentication URL');
+  }
+  const url = new URL(value);
+  const loopback = ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname);
+  if (url.protocol !== 'https:' && !(allowLocal && loopback && url.protocol === 'http:')) {
+    throw new Error('Invalid authentication URL');
+  }
+  return url;
 }

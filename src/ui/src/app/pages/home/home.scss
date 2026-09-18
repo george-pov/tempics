@@ -1,6 +1,10 @@
 @use 'src/styles/variables' as *;
 
 :host {
+  display: block;
+}
+
+.sign-in {
   display: flex;
   justify-content: center;
   padding-block: $app-space-12;

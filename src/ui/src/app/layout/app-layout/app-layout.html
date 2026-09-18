@@ -2,7 +2,7 @@
 
 <header class="header">
   <div class="app-container header-row">
-    <a class="brand" [routerLink]="session.isSignedIn() ? '/image-generator' : '/'" aria-label="Tempics home">
+    <a class="brand" routerLink="/" aria-label="Tempics home">
       <span class="mark" aria-hidden="true">T</span>
       <span>Tempics</span>
     </a>
@@ -16,15 +16,25 @@
               routerLinkActive="is-active"
               [routerLinkActiveOptions]="activeMatch"
               ariaCurrentWhenActive="page"
-            >{{ item.label }}</a>
+              >{{ item.label }}</a
+            >
           }
         </nav>
-        <app-button (click)="signOut()">Sign out</app-button>
+        <app-button [disabled]="session.isBusy()" (click)="signOut()">Sign out</app-button>
       </div>
     }
   </div>
 </header>
 
-<main #content id="main-content" class="app-container content" tabindex="-1" aria-label="Page content">
+<main
+  #content
+  id="main-content"
+  class="app-container content"
+  tabindex="-1"
+  aria-label="Page content"
+>
+  @if (session.errorMessage()) {
+    <p role="alert">{{ session.errorMessage() }}</p>
+  }
   <router-outlet (activate)="pageActivated()" />
 </main>

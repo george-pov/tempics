@@ -1,4 +1,11 @@
 {
   "environment": "local",
-  "apiBaseUrl": "http://localhost:7159/api"
+  "apiBaseUrl": "http://localhost:7159/api",
+  "auth": {
+    "clientId": "11111111-1111-1111-1111-111111111111",
+    "authority": "https://tenant.example.test/tenant-id/v2.0",
+    "redirectUri": "http://localhost:4200/",
+    "postLogoutRedirectUri": "http://localhost:4200/",
+    "apiScopes": ["api://example-api/Images.Render"]
+  }
 }

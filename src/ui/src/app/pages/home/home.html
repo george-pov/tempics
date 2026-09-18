@@ -1,1 +1,9 @@
-<app-button (click)="signIn()">Sign in</app-button>
+@if (session.isSignedIn()) {
+  <app-image-generator />
+} @else {
+  <div class="sign-in">
+    <app-button [disabled]="session.isBusy()" (click)="signIn()">
+      {{ session.isBusy() ? 'Signing in...' : 'Sign in' }}
+    </app-button>
+  </div>
+}

@@ -24,9 +24,10 @@ environment URLs in local configuration or deployment notes.
 - Uploads use Azure login. The operator's Storage Blob Data Contributor role is
   scoped to `$web`; resource administration remains separate.
 - API calls use the absolute URL in runtime JSON. CORS rules are configured
-  manually on the API, including support for the `x-functions-key` header.
+  manually on the API, including support for `Authorization` and `x-functions-key`.
   The deployed JSON includes a public Function key, which the UI sends to the
-  sample endpoint. Hosting these files does not implement Entra sign-in.
+  sample endpoint alongside the Entra access token. Runtime auth settings and
+  the Entra SPA registration must agree on the UI's root redirect URL.
 
 ## Provision Infrastructure With Bicep
 

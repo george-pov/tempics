@@ -119,9 +119,21 @@ Set `UI_APP_CONFIG_JSON` to the base configuration for the target environment:
 ```json
 {
   "environment": "dev",
-  "apiBaseUrl": "https://func-tempics-api-dev.azurewebsites.net/api"
+  "apiBaseUrl": "https://api.example.test/api",
+  "auth": {
+    "clientId": "11111111-1111-1111-1111-111111111111",
+    "authority": "https://tenant.example.test/tenant-id/v2.0",
+    "redirectUri": "https://ui.example.test/",
+    "postLogoutRedirectUri": "https://ui.example.test/",
+    "apiScopes": ["api://example-api/Images.Render"]
+  }
 }
 ```
+
+Replace these fixtures with the API address, SPA registration, external tenant
+authority, registered UI root URL, and API scope for that environment. The auth
+tenant is independent of the deployment identity's `AZURE_TENANT_ID`.
+See [runtime configuration](../ui/development/configuration.md).
 
 The workflows require these six variables. Previously configured
 `AZURE_RESOURCE_GROUP`, `TP_ENV`, `TP_API_URL`, and `TP_UI_URL` variables are no

@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, ElementRef, inject, viewChild } from '@angular/core';
-import { IsActiveMatchOptions, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { IsActiveMatchOptions, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { Button } from '../../shared/components/button/button';
-import { DemoSession } from '../../shared/session/demo-session';
+import { AuthSession } from '../../shared/auth/auth-session';
 
 @Component({
   selector: 'app-layout',
@@ -11,8 +11,7 @@ import { DemoSession } from '../../shared/session/demo-session';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AppLayout {
-  private readonly router = inject(Router);
-  protected readonly session = inject(DemoSession);
+  protected readonly session = inject(AuthSession);
   private readonly content = viewChild.required<ElementRef<HTMLElement>>('content');
   private hasPage = false;
 
@@ -34,8 +33,7 @@ export class AppLayout {
   }
 
   protected signOut(): void {
-    this.session.signOut();
-    void this.router.navigateByUrl('/', { replaceUrl: true });
+    void this.session.signOut();
   }
 
   protected pageActivated(): void {

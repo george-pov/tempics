@@ -1,6 +1,6 @@
 import { Routes } from '@angular/router';
 import { AppLayout } from './layout/app-layout/app-layout';
-import { homeGuard, signedInGuard } from './shared/session/demo-guards';
+import { signedInGuard } from './shared/auth/auth-guard';
 
 export const routes: Routes = [
   {
@@ -17,7 +17,6 @@ export const routes: Routes = [
         path: '',
         pathMatch: 'full',
         title: 'Home | Tempics',
-        canActivate: [homeGuard],
         loadComponent: () => import('./pages/home/home').then((m) => m.Home),
       },
       {

@@ -22,6 +22,9 @@ if (-not (Test-Path public/config.json)) {
 }
 ```
 
+Replace the example authentication values with the Entra SPA registration and
+API scope, using the registered localhost root URL for both redirects.
+
 In a separate terminal, start the API from `src/api/TP.AzureFunctions/`:
 
 ```powershell
@@ -50,15 +53,14 @@ npm run build
 The optimized output under `dist/tempics/browser` contains no runtime JSON,
 even if local settings exist. The deployment workflow writes the complete JSON
 from GitHub Environment variable `UI_APP_CONFIG_JSON` to `config.json`.
-For a local copy of the build, write the file directly:
+For a local copy of the build, copy your complete configuration:
 
 ```powershell
-'{"environment":"dev","apiBaseUrl":"https://dev.example.test/api"}' |
-  Set-Content -LiteralPath dist/tempics/browser/config.json -Encoding utf8
+Copy-Item public/config.json dist/tempics/browser/config.json
 ```
 
-Use explicit dev/prod settings for each copy of the same build. The URL above is
-a reserved fixture. See [configuration](configuration.md#build-once-and-package)
+Use explicit dev/prod settings and registered HTTPS redirects for hosted copies.
+See [configuration](configuration.md#build-once-and-package)
 for the runtime JSON contract.
 
 ## Unit Tests

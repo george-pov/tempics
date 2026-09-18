@@ -1,21 +1,19 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
-import { Router } from '@angular/router';
 import { Button } from '../../shared/components/button/button';
-import { DemoSession } from '../../shared/session/demo-session';
+import { AuthSession } from '../../shared/auth/auth-session';
+import { ImageGenerator } from '../image-generator/image-generator';
 
 @Component({
   selector: 'app-home',
-  imports: [Button],
+  imports: [Button, ImageGenerator],
   templateUrl: './home.html',
   styleUrl: './home.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class Home {
-  private readonly session = inject(DemoSession);
-  private readonly router = inject(Router);
+  protected readonly session = inject(AuthSession);
 
   protected signIn(): void {
-    this.session.signIn();
-    void this.router.navigateByUrl('/image-generator', { replaceUrl: true });
+    void this.session.signIn();
   }
 }

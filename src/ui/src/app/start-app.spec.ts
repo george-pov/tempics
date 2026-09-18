@@ -1,6 +1,7 @@
 import { bootstrapApplication } from '@angular/platform-browser';
 import { CONFIG } from './shared/config/config-token';
 import { startApp } from './start-app';
+import { CONFIG_FIXTURE } from './shared/config/config-fixture';
 
 vi.mock('@angular/platform-browser', async (original) => ({
   ...(await original<typeof import('@angular/platform-browser')>()),
@@ -8,7 +9,7 @@ vi.mock('@angular/platform-browser', async (original) => ({
 }));
 
 describe('startApp', () => {
-  const fixture = { environment: 'local', apiBaseUrl: 'http://localhost:7159/api' };
+  const fixture = CONFIG_FIXTURE;
 
   beforeEach(() => {
     document.body.innerHTML =

@@ -1,7 +1,8 @@
 import { loadConfig } from './load-config';
+import { CONFIG_FIXTURE } from './config-fixture';
 
 describe('loadConfig', () => {
-  const fixture = { environment: 'local', apiBaseUrl: 'http://localhost:7159/api' };
+  const fixture = CONFIG_FIXTURE;
 
   afterEach(() => {
     vi.unstubAllGlobals();

@@ -54,25 +54,34 @@ content without adding another `main` or outer `app-container`.
 Primary links identify the current page visually and through `aria-current`.
 Navigation wraps on narrow screens. A keyboard skip link focuses the content;
 subsequent page activations move focus there while initial loading preserves
-browser focus. Each page route supplies a document title. The shell has no
-authentication provider or API dependency.
+browser focus. Each page route supplies a document title. The shell consumes
+the shared authentication session for navigation, sign-out, and safe feedback.
 
-## Simulated Sign-In Flow
+## Sign-In Flow
 
-Opening `/` shows the home page with a single Sign in button. The shared
-header shows the brand; primary navigation and Sign out appear only in signed-in
-mode. Clicking Sign in switches the in-memory `DemoSession` into signed-in mode
-and opens `/image-generator`, which contains the sample image generator. Sign out clears
-the mode and returns to `/`, destroying the generator and releasing its preview.
+Opening `/` while signed out shows a Sign in button. It redirects the current
+window to Microsoft Entra External ID for email/password sign-in. Entra returns
+to `/`, where Home displays the image generator for the signed-in account.
+The header exposes primary navigation and Sign out while signed in.
+`/image-generator` remains available as a guarded direct route;
+`/component-lab` remains public.
 
-The route guards under `shared/session/` redirect signed-out visits to `/image-generator`
-back to `/`, and signed-in visits to `/` back to `/image-generator`. Refreshing or opening
-a new tab starts signed out; the simulation stores nothing in browser storage.
-`/component-lab` remains directly accessible in either mode.
+`AuthSession` under `shared/auth/` uses `@azure/msal-browser` for authorization
+code flow with PKCE, redirect completion, sign-out, and API access tokens.
+An application initializer finishes MSAL initialization and redirect handling
+before Angular starts routing. MSAL owns its session-storage cache and restores
+the account on reload. Sign out ends the Entra session and returns to `/`.
+Cancelled or denied sign-in shows safe feedback and permits another attempt.
 
-This is presentation state only: it creates no user identity, credentials,
-tokens, or API permissions. Real Entra authentication and per-user authorization
-remain separate work. The sample API request contract is unchanged.
+The bearer interceptor acquires a token silently for the configured API scopes.
+If Entra requires interaction, it redirects to sign-in and holds the API call.
+Other token failures fail the request without sending it or retrying indefinitely.
+Only requests matching the API origin and path boundary receive the token.
+ID tokens are never used as API bearer tokens.
+
+Route guards control presentation. The sample Function still uses its existing
+Function-key boundary and does not validate these bearer tokens. API token
+validation and per-user authorization require separate backend implementation.
 
 ## Responsibilities
 
@@ -126,7 +135,7 @@ preserves its empty POST/PNG Blob contract. If runtime settings contain
 `functionKey`, this request sends it as
 `x-functions-key`. Deployment injects that shared key into public configuration;
 it is visible to visitors and does not establish user identity. API CORS must
-allow the UI's exact origin and this header. See
+allow the UI's exact origin, `Authorization`, and `x-functions-key`. See
 [runtime configuration](development/configuration.md) for validation, local
 setup, packaging, and the separate hosted CORS/authentication requirements.
 

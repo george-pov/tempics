@@ -10,7 +10,7 @@ data. Reloading the page restores the first registered lab and resets examples.
 
 ## Using The Workbench
 
-Open Component Lab from the application header in simulated signed-in mode,
+Open Component Lab from the application header after signing in,
 or visit `/component-lab` directly in either mode. It shares the same layout as
 Home and Image Generator; the header's Image Generator link returns to the sample
 image page at `/image-generator`.

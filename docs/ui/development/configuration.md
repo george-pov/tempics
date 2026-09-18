@@ -10,11 +10,18 @@ startup configuration.
 ```json
 {
   "environment": "local",
-  "apiBaseUrl": "http://localhost:7159/api"
+  "apiBaseUrl": "http://localhost:7159/api",
+  "auth": {
+    "clientId": "11111111-1111-1111-1111-111111111111",
+    "authority": "https://tenant.example.test/tenant-id/v2.0",
+    "redirectUri": "http://localhost:4200/",
+    "postLogoutRedirectUri": "http://localhost:4200/",
+    "apiScopes": ["api://example-api/Images.Render"]
+  }
 }
 ```
 
-`environment` and `apiBaseUrl` are required. An optional `functionKey` supplies
+`environment`, `apiBaseUrl`, and `auth` are required. Optional `functionKey` supplies
 the sample API's `x-functions-key` header. It must be a nonempty string of key
 characters (letters, digits, `_`, `+`, `/`, `=`, or `-`). Other fields are rejected.
 `environment` is exactly `local`, `dev`, or
@@ -28,8 +35,17 @@ whitespace, backslashes, credentials, query strings, fragments, and unsupported
 schemes. Trailing slashes are removed while preserving the API path prefix.
 `ImageRenderApi` appends `/renders/sample` and sends an empty POST for a PNG
 Blob. When `functionKey` is present, it sends that value as `x-functions-key`.
-When absent, it omits the header, preserving local Core Tools use. It does not
-send an Authorization header or enable cookie credentials.
+When absent, it omits the header, preserving local Core Tools use. The bearer
+interceptor adds `Authorization: Bearer <access-token>` after acquiring the
+configured API scope for the signed-in account. Cookie credentials stay disabled.
+
+All five `auth` fields are required. `clientId` is the SPA application ID GUID.
+`authority` is the external tenant's HTTPS authority; its hostname supplies MSAL's
+known authority. `apiScopes` contains the exposed Tempics API scope, not a Graph
+scope or an ID token request. Redirect and post-logout URLs must both be the
+application's root URL, with the same origin as the running UI. Local HTTP is
+allowed only on the three loopback hosts above. Use the actual registered SPA
+redirect URL. The values in the example are fixtures and cannot sign in.
 
 The browser uses `config.schema.json` and
 `validateConfig` under `src/ui/src/app/shared/config/`. The schema validator is
@@ -46,8 +62,8 @@ if (-not (Test-Path public/config.json)) {
 }
 ```
 
-Edit `public/config.json` for your local API address. It and its temporary
-siblings are ignored by Git. The example is tracked outside public assets and
+Edit `public/config.json` for your local API address and Entra registration.
+It and its temporary siblings are ignored by Git. The example is tracked outside public assets and
 is never used as a fallback. See [build and test](build-and-test.md) for startup
 commands.
 
@@ -75,8 +91,8 @@ are not displayed. Settings are loaded once per page load.
 Production builds exclude `config.json` and `config.json.*` even when local
 settings exist. Both hosted dev and prod use the optimized production build.
 
-Store `environment` and `apiBaseUrl` as JSON in the GitHub Environment variable
-`UI_APP_CONFIG_JSON`. Set the existing sample Function key as Environment secret
+Store `environment`, `apiBaseUrl`, and the complete `auth` object as JSON in
+GitHub Environment variable `UI_APP_CONFIG_JSON`. Set the existing sample Function key as Environment secret
 `AZURE_FUNCTION_KEY`. The workflow merges it into JSON as `functionKey` using
 inline Node code and writes `config.json` after the build. A missing secret fails
 that step. The key is passed through the process environment, never a shell
@@ -87,20 +103,39 @@ For a local copy of the production build, from `src/ui/`:
 ```powershell
 npm ci
 npm run build
-'{"environment":"dev","apiBaseUrl":"https://dev.example.test/api"}' |
-  Set-Content -LiteralPath dist/tempics/browser/config.json -Encoding utf8
+Copy-Item public/config.json dist/tempics/browser/config.json
 ```
 
-The example URL is a reserved fixture. Use the intended public API URL for a
-real deployment. No generator or packaging script is required. The browser
-validates the JSON at startup using the contract above.
+This copy uses the local settings. For hosting, supply the intended environment,
+public API URL, and registered HTTPS home URL instead. No generator or packaging
+script is required. The browser validates the JSON at startup using the contract above.
 
 To prepare multiple environments from one build, copy the configuration-free
 output and add the appropriate `config.json` to each copy. JavaScript, CSS,
 HTML, and fonts stay unchanged. Changing JSON and reloading selects the new
 address without recompilation.
 
-## Hosting And Authentication Follow-Up
+## Entra Registration
+
+Use an external tenant with an email/password sign-up and sign-in user flow.
+The flow collects email and optional display name. Register `Tempics SPA - Dev`
+as a single-tenant SPA with root redirect URLs for local development and the
+intended dev UI origins. Use authorization code flow with PKCE; no client secret
+or implicit grant is needed. Link the SPA to the user flow. When assignment is
+required on the enterprise application, assign each permitted user there.
+
+Register `Tempics API - Dev` in the same tenant to define the token audience,
+request v2 access tokens, and expose the delegated `Images.Render` scope.
+Grant that scope to the SPA with administrator consent. This API registration
+allows Entra to issue a Tempics access token; it does not configure the running
+Function App to validate it. The frontend needs no Microsoft Graph permission.
+
+Keep real tenant IDs, application IDs, authority URLs, and deployment addresses
+in environment configuration. See Microsoft's guidance for
+[app registration](https://learn.microsoft.com/en-us/entra/identity-platform/quickstart-register-app)
+and [linking a user flow](https://learn.microsoft.com/en-us/graph/api/authenticationconditionsapplications-post-includeapplications?view=graph-rest-1.0).
+
+## Hosting And API Boundary
 
 Browser configuration is public. The deployment deliberately exposes the
 injected Function key to site visitors, who can reuse it outside the UI.
@@ -118,11 +153,8 @@ A valid URL can still target the wrong environment.
 Hosting must serve configuration as JSON with `Cache-Control: no-store`, avoid
 SPA fallback and redirects for missing config, and deliver a compatible
 application/config pair. Test these rules on the chosen host. Configure hosted
-API CORS to allow the UI origin and the `x-functions-key` request header.
-Configure user authentication separately; local CORS or mocked browser routing
-does not prove hosted access. Preserve compatible pairs for rollback.
-
-Add `auth.clientId`, `auth.authority`, `auth.redirectUri`,
-`auth.postLogoutRedirectUri`, and `auth.apiScopes` only with their first Entra/MSAL
-consumers. Extend the schema, runtime type, providers, and tests
-together. The current settings do not implement authentication.
+API CORS to allow the UI origin and both `Authorization` and `x-functions-key`.
+The sample Function still needs its Function key; frontend sign-in does not
+establish API-side token validation or ownership enforcement. Preserve compatible
+application/configuration pairs for rollback. Before publishing this frontend,
+add `auth` to `UI_APP_CONFIG_JSON`; older JSON without it fails startup.
