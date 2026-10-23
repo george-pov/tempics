@@ -1,37 +1,26 @@
-# API Docs
+# API Documentation
 
-Durable documentation for the backend API under `src/api/Tempics/`.
+The backend solution is `src/api/Tempics.slnx`. Start with
+[local setup](../getting-started.md) to run the application, or
+[HTTP endpoints](endpoints.md) to call the API.
 
-## Ownership
+## Reference
 
-- Source of truth: backend structure, coding rules, naming, testing, and local
-  commands.
-- Update when: API boundaries, development practices, or indexed files change.
-- Validate with: compare this index against `rg --files docs/api`, verify links,
-  and run `git diff --check`.
+- [Architecture](architecture.md): projects, dependencies, and renderer lifetime.
+- [Endpoints](endpoints.md): request, response, header, and error contracts.
+- [Authentication](authentication.md): bearer validation, scope, and API settings.
 
-## Contents
+## Development
 
-- Architecture: [`architecture.md`](architecture.md)
-- Entra bearer tokens and configuration: [`authentication.md`](authentication.md)
-- Development guidelines:
-  [`development/development-guidelines.md`](development/development-guidelines.md)
-- Naming conventions:
-  [`development/naming-conventions.md`](development/naming-conventions.md)
-- Testing guidance: [`development/testing.md`](development/testing.md)
-- Build and test commands:
-  [`development/build-and-test.md`](development/build-and-test.md)
+- [Development standards](development/development-guidelines.md)
+- [Naming conventions](development/naming-conventions.md)
+- [Testing guidance](development/testing.md)
+- [Build and test commands](development/build-and-test.md)
 
-## Scope
+## Related Guides
 
-API docs own:
-
-- Azure Functions host behavior and composition.
-- HTTP routes, authentication, authorization, request, response, and error
-  contracts.
-- Application and domain placement rules.
-- Rendering, persistence, Azure service, and external adapter boundaries.
-- Backend development, build, test, configuration, and deployment guidance.
-
-Routes, pages, forms, browser state, and frontend development guidance belong
-in [`../ui/`](../ui/).
+- [Operations](../operations/README.md): identity setup, infrastructure, deployment,
+  and manual package recovery.
+- [UI documentation](../ui/README.md): browser routes, state, and API consumption.
+- [Product target](../product.md): intended capabilities beyond the sample flow.
+- [Documentation index](../README.md)

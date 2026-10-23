@@ -17,6 +17,13 @@ Use this hierarchy:
 4. `.work/`: local-only agent workflow records, feature plans, task lists,
    validation notes, reviews, decisions, and transient artifacts.
 
+`docs/product.md` owns the future product target. Other durable docs describe
+current behavior, supported procedures, and applicable engineering standards.
+Keep future capability requirements in the product document and link to them.
+Keep docs short: record stable boundaries, essential procedures, and contracts.
+Link to source for changing implementation details; avoid repeated rules,
+symbol-by-symbol walkthroughs, and exhaustive source/test inventories.
+
 Do not reference `.work/` from `README.md` or durable documents under `docs/`.
 
 ## Read Order
@@ -49,7 +56,7 @@ any directly relevant `.work` record.
   `docs/architecture.md`, `docs/api/architecture.md`,
   `docs/api/development/development-guidelines.md`,
   `docs/api/development/naming-conventions.md`, and
-  `docs/api/development/testing.md`, then inspect `src/api/Tempics/` and all
+  `docs/api/development/testing.md`, then inspect `src/api/` and all
   affected consumers.
 - Reviews: compare source, tests, durable docs, the approved feature plan, and
   task completion state. Record feature-specific findings in `review.md`.
@@ -67,14 +74,15 @@ Html2B is historical and technical reference material, not part of the Tempics
 product story. Do not mention Html2B in `README.md`, durable product docs, or
 user-facing product copy.
 
-Do not copy Html2B assumptions without validating them for Tempics. Tempics has
-authenticated user accounts and per-user data. Authentication and authorization
-must preserve ownership boundaries for templates, assets, and generated images.
+Do not copy Html2B assumptions without validating them for Tempics. Tempics uses
+Entra authentication; its current sample flow has no user-owned persistent data.
+Use `docs/product.md` for target ownership requirements and `docs/architecture.md`
+for implemented boundaries.
 
 ## Repository Boundaries
 
 - `src/ui/`: Angular 22 frontend workspace.
-- `src/api/Tempics/`: Azure Functions v4 API using the .NET 10 isolated worker.
+- `src/api/`: Azure Functions v4 API using the .NET 10 isolated worker.
 - `docs/`: tracked, durable human-facing documentation.
 - `.work/`: ignored, local-only agent workflow and feature records.
 
@@ -147,18 +155,12 @@ During plan or task design, use read-only inspection. Do not run builds, tests,
 restores, formatters, generators, migrations, application hosts, or other
 commands that create artifacts.
 
-## Target Product
+## Product And Operations Routing
 
-- Host the application on Microsoft Azure.
-- Implement the frontend with Angular 22.
-- Implement the API as Azure Functions v4 using the .NET 10 isolated worker.
-- Authenticate users with Microsoft Entra ID.
-- Allow each user to create and manage multiple AXAML templates.
-- Allow users to upload reusable profile assets, including images.
-- Support template parameters such as text and images.
-- Generate a PNG after the user selects a template and supplies parameter
-  values.
-- Use Avalonia UI for server-side AXAML rendering.
+- Read `docs/product.md` for target capabilities and unresolved product choices.
+- Read `docs/architecture.md` for the current system.
+- Start operational work at `docs/operations/README.md` and follow the relevant
+  setup, deployment, or hosting guide.
 
 ## Security Boundaries
 

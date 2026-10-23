@@ -1,103 +1,47 @@
-# API Naming Conventions
+# API Naming
 
-Naming conventions for Tempics .NET code.
+## Identifiers
 
-## General Rules
+- Use intent-revealing names and one consistent term per concept.
+  Avoid generic Manager, Processor, Data, Info, Helper, Utils, and Common names.
+- Default to at most 24 characters. Names of 25-28 characters need a readability
+  justification; do not introduce repository-owned names above 28.
+  Provider/compatibility names retain their required spelling.
+- Let namespaces and containing types carry context. Match each file to one
+  primary public concept; organize namespaces by boundary and product concept.
+- Use PascalCase for types, namespaces, public members, constants, events, and
+  positional record parameters; camelCase for parameters, locals, and local functions;
+  _camelCase for explicit private instance fields.
+- Prefix interfaces with I and descriptive generic parameters with T.
+- Use nouns for types/properties, verbs for methods, affirmative booleans, and
+  plural collection names without a List suffix.
+- Use Id, Utc, Json, Url, Api, OAuth, Axaml, and Png consistently.
+- End task-returning methods with Async; name cancellation parameters cancellationToken.
+- Provider names belong at integration boundaries, not on product-owned domain concepts.
 
-- Use names that reveal intent at declaration and call sites.
-- Prefer one consistent word for each concept.
-- Avoid generic names such as `Manager`, `Processor`, `Data`, `Info`, `Helper`,
-  `Utils`, and `Common` when a product or role name is available.
-- Keep repository-owned names at 24 characters or fewer by default. Names from
-  25 through 28 characters require a clear readability justification. Do not
-  create repository-owned names longer than 28 characters.
-- Provider-defined names and compatibility contracts may retain their required
-  spelling and length.
-- Let namespaces and containing types carry context instead of repeating every
-  concept in an identifier.
+## Roles
 
-## C# Casing
+Use `{Verb}{Thing}Query/Command/Handler/Result` for use cases,
+`{Verb}{Thing}Request/Response` for transport, `{Thing}Entity` for persistence,
+`I{Thing}{Role}` for ports, `{Provider}{Thing}{Role}` for adapters, and
+`{Scenario}Options` for configuration. Domain types use domain nouns.
 
-- Use `PascalCase` for namespaces, types, public members, constants, events, and
-  record positional parameters.
-- Use `camelCase` for parameters, local variables, and local functions.
-- Use `_camelCase` for private instance fields when an explicit field is
-  needed.
-- Prefix interfaces with `I`.
-- Prefix descriptive generic parameters with `T`, such as `TCommand`.
-- Use `Id`, `Utc`, `Json`, `Url`, `Api`, `OAuth`, `Axaml`, and `Png`
-  consistently.
-- Use nouns for types and properties. Use verbs for methods.
-- Use affirmative names for booleans, such as `IsValid`, `CanRender`, and
-  `HasAccess`.
-- Use plural nouns for collections instead of suffixing them with `List`.
-- End task-returning asynchronous methods with `Async`.
-- Name cancellation parameters `cancellationToken`.
+Current examples: `RenderSampleQuery`, `RenderSampleHandler`,
+`RenderImageResult`, `IBundledTemplateSource`, and `AuthOptions`.
+Reserve Payload for opaque bytes/text or provider-owned content.
 
-## Layer Patterns
+## Verbs
 
-Use short role-based names:
+Get returns a required value; Find returns an optional value; List returns many.
+Create, Update, Delete, and Save name writes. Render produces an image.
+Validate checks rules; Map converts models; Parse fails on invalid input;
+TryParse reports success; Load reads; Handle executes a use case.
 
-| Boundary | Pattern | Example |
-| --- | --- | --- |
-| Domain | Domain noun or value object | `Template`, `TemplateParameter` |
-| Command | `{Verb}{Thing}Command` | `CreateTemplateCommand` |
-| Query | `{Verb}{Thing}Query` | `GetTemplateQuery` |
-| Handler | `{Verb}{Thing}Handler` | `RenderImageHandler` |
-| Result | `{Verb}{Thing}Result` | `RenderImageResult` |
-| HTTP request | `{Verb}{Thing}Request` | `CreateTemplateRequest` |
-| HTTP response | `{Verb}{Thing}Response` | `CreateTemplateResponse` |
-| Persistence entity | `{Thing}Entity` | `TemplateEntity` |
-| Application port | `I{Thing}{Role}` | `ITemplateRepository` |
-| Provider adapter | `{Provider}{Thing}{Role}` | `AzureAssetRepository` |
-| Configuration | `{Scenario}Options` | `RenderOptions` |
-
-Use `Request` and `Response` for strongly typed transport messages. Use
-`Command`, `Query`, and `Result` for application use cases. Reserve `Payload`
-for opaque text, bytes, or provider-owned content.
-
-## Operation Verbs
-
-Use verbs consistently:
-
-| Verb | Meaning |
-| --- | --- |
-| `Get` | Return one required existing value without mutation. |
-| `Find` | Search for an optional value. |
-| `List` | Return multiple existing values. |
-| `Create` | Create a resource. |
-| `Update` | Change an existing resource. |
-| `Delete` | Remove a resource. |
-| `Render` | Produce an image from a template and parameter values. |
-| `Validate` | Check rules without mutation. |
-| `Map` | Convert between boundary models. |
-| `Parse` | Convert text to a typed value and fail when invalid. |
-| `TryParse` | Attempt parsing and return a success indicator. |
-| `Load` | Read configuration, storage, or an owned resource. |
-| `Save` | Persist an application-owned value. |
-| `Handle` | Execute an application command or query. |
-
-A method named `Get`, `Find`, `List`, or `Validate` must not create, update, or
-delete state.
-
-## Files And Namespaces
-
-- Keep one primary public concept per file and match the file name to it.
-- Organize namespaces by application boundary and product concept.
-- Use provider names such as `Azure` or `Avalonia` only at infrastructure or
-  integration boundaries.
-- Do not put provider names on domain concepts owned by Tempics.
+Get, Find, List, and Validate must not mutate state.
 
 ## Test Names
 
-Use `MethodName_Scenario_ExpectedBehavior` with PascalCase segments separated
-by underscores:
-
-```csharp
-RenderAsync_UnknownAsset_ReturnsValidationFailure()
-CreateTemplate_DifferentOwner_ReturnsForbidden()
-```
-
-For generic entry points such as `HandleAsync`, the first segment may name the
-behavior when that makes the test clearer. Do not prefix test names with
-`Test`.
+Use `MethodName_Scenario_ExpectedBehavior`, such as
+`HandleAsync_NoPng_Throws` or `Render_Sample_ReturnsPng`.
+For generic entry points, the first segment may name the behavior.
+Do not prefix names with Test.

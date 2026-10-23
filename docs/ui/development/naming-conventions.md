@@ -1,110 +1,38 @@
-# UI Naming Conventions
+# UI Naming
 
-Naming conventions for the Tempics Angular frontend.
+## Files And Folders
 
-## General Rules
+- Use kebab-case and one primary concept per file. Match filenames to their
+  TypeScript identifier; keep `.spec.ts` beside the code.
+- Name folders by owner: page, layout, or shared capability. Match route folders
+  to route paths where practical.
+- Keep workflow state/types near its page; API clients and transport types belong
+  in `shared/api/<domain>/`. Other behavior becomes shared when reused.
+- Avoid catch-all utils, helpers, common, data, manager, or processor names.
+- Default to at most 24 characters. Names of 25-28 characters need a readability
+  justification; do not introduce repository-owned names above 28.
+  Provider/compatibility names retain their required spelling.
 
-- Use kebab-case for folders and file names.
-- Match a file name to its primary TypeScript identifier.
-- Keep one primary concept per file.
-- Keep tests beside the code under test with `.spec.ts`.
-- Avoid generic names such as `utils.ts`, `helpers.ts`, `common.ts`, `data`,
-  `manager`, and `processor`.
-- Keep repository-owned names at 24 characters or fewer by default. Names from
-  25 through 28 characters require a clear readability justification. Do not
-  create repository-owned names longer than 28 characters.
-- Provider-defined names and compatibility contracts may retain their required
-  spelling and length.
+## Components And Types
 
-## Folders
+Use concise names such as `button.ts`, `Button`, and `app-button`.
+Use app- kebab-case selectors; do not add .component or Component by default.
+Add Page only to distinguish a routed container.
 
-Folder names describe a route, page flow, layout, or shared capability:
+Use role names such as `ImageRenderApi` / `image-render-api.ts`,
+`AuthSession` / `auth-session.ts`, and `RuntimeConfig` / `runtime-config.ts`.
+Avoid .service, .model, .interface, and .type file suffixes.
+Service is acceptable when it clearly describes a class role.
 
-```text
-layout/app-layout/
-pages/templates/
-pages/template-editor/
-pages/assets/
-pages/render/
-shared/api/
-shared/auth/
-shared/components/
-shared/config/
-```
+Request/Response name transport types; State names a state shape; Store names
+its coordinator. Use Model only for a deliberate UI model.
 
-Keep feature-owned state, types, and workflow services near their page flow.
-Move them to `shared/` when multiple features use them. Keep API clients and
-transport types under `shared/api/<domain>/`, such as
-`shared/api/image-render/image-render-api.ts` for `ImageRenderApi`.
+## Members
 
-## Components
+- Use camelCase for functions/members/locals and PascalCase for types.
+- Use affirmative boolean names and action names such as signIn instead of handleClick.
+- Mark stable dependencies, inputs, outputs, signals, and configuration readonly;
+  template-only members protected.
+- Name pure utilities by behavior, such as `validate-config.ts`.
 
-Use Angular's concise file and class naming for new components:
-
-```text
-template-editor.ts
-template-editor.html
-template-editor.scss
-template-editor.spec.ts
-```
-
-The folder, file, primary class, and selector describe the same concept:
-
-```text
-shared/components/image-preview/image-preview.ts
-ImagePreview
-app-image-preview
-```
-
-Use the `app-` selector prefix and kebab-case selectors. Do not add `.component`
-to new file names or `Component` to class names by default. Existing names do
-not require churn-only renaming.
-
-## Routes And Pages
-
-Route-owned folders should mirror route paths where practical. Do not append
-`Page` unless it distinguishes a routed container from another concept.
-
-Prefer:
-
-```text
-pages/templates/templates.ts
-pages/template-editor/template-editor.ts
-```
-
-## Services, Models, And Types
-
-Choose a role or data-shape name, then mirror it in kebab-case:
-
-```text
-TemplatesApi          templates-api.ts
-TemplateEditorStore   template-editor-store.ts
-TemplateSummary       template-summary.ts
-RenderImageRequest    render-image-request.ts
-```
-
-Do not add dot-separated artifact suffixes such as `.service`, `.model`,
-`.interface`, or `.type` to new files. A class may include `Service` when that
-is the clearest role name.
-
-Use `Request` and `Response` for HTTP boundary messages. Use `Model` only when
-it identifies an intentional UI model rather than a generic data container.
-Use `State` for a state shape and `Store` for an owner that coordinates state.
-
-## Functions And Members
-
-- Use `camelCase` for functions, methods, properties, parameters, and local
-  variables.
-- Use `PascalCase` for classes, interfaces, type aliases, and enums.
-- Name booleans affirmatively with `is`, `has`, `can`, or `should`.
-- Name event handlers for the action they perform, such as `saveTemplate` or
-  `selectAsset`, rather than generic `handleClick` names.
-- Mark stable dependencies, inputs, outputs, signals, and configuration
-  `readonly`.
-- Use `protected` for members read only by the template.
-- Name pure utilities by behavior, such as `buildRenderRequest.ts`; do not
-  create catch-all utility files.
-
-## Styles
-
-Use the class naming and state conventions in [`styling.md`](styling.md).
+Do not rename existing code solely for style. See [styling](styling.md) for CSS names.

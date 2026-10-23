@@ -1,121 +1,48 @@
-# UI Development Guidelines
+# UI Development Standards
 
-Development guidance for the Tempics Angular frontend.
+Use strict TypeScript and Angular template checking. The official Angular
+style guide is the baseline; these repository conventions take precedence.
 
-## Project Defaults
+## Components And Templates
 
-- Framework: Angular 22 with standalone components.
-- Language: TypeScript with strict compiler and Angular template checks.
-- Styling: component-scoped SCSS, shared Sass tokens and mixins, global layout
-  utilities, and a single Angular Material Sass theme.
-- Package manager: npm.
-- Unit-test runtime: Angular unit-test builder with Vitest and jsdom.
-- Principles: clear ownership, typed contracts, accessibility, predictable
-  state, and small route-focused features.
+- Use standalone, OnPush components and lazy routes. Omit redundant
+  `standalone: true`; add NgModules only for compatibility.
+- Keep providers in `app.config.ts` and routes in `app.routes.ts`.
+- Prefer `inject()`, `input()`, `output()`, and component `host` bindings.
+- Keep presentation and interaction in components; move reusable API, validation,
+  branching, and mapping logic out. Colocate templates, styles, and tests.
+- Prefer inference locally and explicit types at boundaries. Narrow `unknown`
+  instead of using `any`. Keep one primary concept per file and mappings pure.
+- Use typed forms and named validation/mapping logic.
+- Use `@if`, `@for`, `@switch`, the async pipe for template observables,
+  and class/style bindings instead of ngClass/ngStyle.
+- Keep templates declarative; place complex calculations in named code.
 
-Use the official Angular style guide as the upstream baseline. These repository
-rules decide when local guidance is more specific.
+## State And Services
 
-## TypeScript
+- Use signals and computed values for local/derived state; update data immutably.
+- Use RxJS for async composition. Use switchMap when newer work supersedes older
+  work and takeUntilDestroyed for owned subscriptions.
+- Handle errors so later user actions still work.
+- Mark stable dependencies and values readonly; template-only members protected.
+- Keep page workflow near its page. Shared behavior needs a clear owner;
+  reusable API clients/types belong in `shared/api/<domain>/`.
+- Use root-provided services for application singletons, configured HttpClient,
+  functional interceptors, and typed runtime configuration.
+- Keep HTTP contracts aligned with the backend. Use the auth interceptor;
+  never put secrets or tokens in configuration, bundles, or logs.
+- Browser validation and route guards do not replace API authorization.
 
-- Keep strict compiler options enabled. Do not weaken `tsconfig` settings to
-  make feature code compile.
-- Prefer inference when the type is obvious and explicit named types at API,
-  form, route, storage, and component boundaries.
-- Use `unknown` and narrow it instead of using `any` for uncertain data.
-- Keep transformations pure when mapping forms, routes, configuration, and API
-  contracts.
-- Prefer immutable updates for arrays, objects, and state values.
-- Keep one primary concept per file.
+## Accessibility And Shared Controls
 
-## Angular
+- Meet WCAG AA; prefer semantic HTML over ARIA.
+- Provide labels, error descriptions, visible focus, keyboard access, and contrast.
+- Keep focus/reading order aligned; manage focus when default behavior is insufficient.
+- Use descriptive accessible link names where visible text needs context.
+- Keep shared-control examples in [Component Lab](component-lab.md).
+- Prefer existing Angular/browser capabilities. Put shared third-party controls
+  behind app-owned boundaries; do not expose private CSS or library internals.
+  Exposing third-party types as app contracts requires a design decision.
+- Avoid unrelated dependencies.
 
-- Use standalone components and route-level lazy loading.
-- Do not add `standalone: true`; standalone is the project default.
-- Do not introduce NgModules for new application code unless compatibility
-  requires one.
-- Keep application providers in `app.config.ts` and routes in `app.routes.ts`.
-- Prefer `inject()` over constructor parameter injection for new code.
-- Prefer `input()` and `output()` over decorator inputs and outputs.
-- Put host bindings and listeners in the component or directive `host` object.
-- Use `ChangeDetectionStrategy.OnPush` on new components.
-- Mark stable dependencies, signals, inputs, outputs, and configuration
-  `readonly`.
-- Use `protected` for members exposed only to the template.
-- Keep components focused on presentation and interaction orchestration. Move
-  API access, reusable validation, branching rules, and mapping out of them.
-- Keep small components colocated with their template, styles, and tests.
-
-## State And Async Work
-
-- Use signals for local input, loading, error, selection, and derived UI state.
-- Use `computed()` for derived values and update signal values immutably.
-- Use RxJS for HTTP composition, cancellation, debounce, retry policies, and
-  multi-step asynchronous streams.
-- Use `switchMap` when a newer action supersedes an in-flight request.
-- Bind owned subscriptions to the component lifecycle with
-  `takeUntilDestroyed()`.
-- Handle errors without terminating streams that must respond to future user
-  actions.
-- Do not duplicate durable authorization or render-policy state in the browser.
-
-## Forms And Templates
-
-- Use typed form models. Avoid `any` controls or untyped request mapping.
-- Keep form validation, cross-field rules, and request mapping in named code
-  rather than large template expressions.
-- UI validation improves feedback; the API remains authoritative.
-- Use native Angular control flow: `@if`, `@for`, and `@switch`.
-- Keep templates declarative. Move complex conditions and transformations into
-  computed signals, services, or pure functions.
-- Use the `async` pipe for observables consumed directly by templates.
-- Prefer class and style bindings over `ngClass` and `ngStyle` in new code.
-
-## Accessibility
-
-- Meet WCAG AA for new and changed user-facing behavior.
-- Prefer semantic HTML before ARIA.
-- Provide programmatic labels, error descriptions, visible focus, keyboard
-  access, and sufficient color contrast.
-- Keep focus order aligned with reading order.
-- Manage focus after route changes, dialogs, validation failures, and completed
-  actions when default browser behavior is insufficient.
-- Give concise visible link text a descriptive accessible name when its
-  destination would otherwise be unclear.
-
-## Services And HTTP
-
-- Give each service one responsibility and a clear owner.
-- Use `providedIn: 'root'` for application-wide singleton services.
-- Keep page-flow services near the page that owns them. Move a service to
-  `shared/` when multiple flows use it. API clients and transport types belong
-  under `shared/api/<domain>/`, independently of their current consumer count.
-- Configure `HttpClient` through application providers and prefer functional
-  interceptors.
-- Keep base URLs and other deployment-specific public values in typed runtime
-  configuration, not page services.
-- Use the bearer interceptor for API authentication. Keep secrets and tokens out
-  of browser configuration, bundles, source, and logs; see
-  [runtime configuration](configuration.md).
-- Keep API requests, responses, and mapping typed and update them with the
-  backend contract.
-
-## Shared Component Workbench
-
-Keep representative shared component states in
-[Component Lab](component-lab.md). Add or update the corresponding lab when a
-shared component's supported inputs or appearance change. Use the real shared
-component and local fixtures, and verify keyboard interaction and responsive
-layout alongside automated tests.
-
-## Dependencies
-
-- Prefer Angular, browser, and existing package capabilities before adding a
-  dependency.
-- Add UI libraries behind app-owned boundaries when their use becomes shared.
-- Do not expose third-party component types or CSS internals as application
-  contracts without an explicit design decision.
-- Do not introduce unrelated dependencies as part of a feature.
-
-Follow [`naming-conventions.md`](naming-conventions.md),
-[`styling.md`](styling.md), and [`testing.md`](testing.md).
+See [naming](naming-conventions.md), [styling](styling.md), and [testing](testing.md).

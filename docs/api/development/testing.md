@@ -1,52 +1,22 @@
 # API Testing
 
-API tests protect product behavior, ownership boundaries, rendering safety,
-and integration contracts rather than framework implementation details.
+Tests live in `src/api/TP.Api.Tests/`; use the
+[command guide](build-and-test.md) to run them.
 
-## Unit Tests
+- Test handlers through application-owned ports with explicit fixtures.
+- Use the shared renderer fixture for real Avalonia/resource tests; keep native
+  lifetime and cleanup deterministic.
+- Test PNG metadata, safe HTTP failures, cancellation, and authentication through
+  observable contracts.
+- Auth tests use signed fixture tokens and local discovery data, not live Entra.
+- Keep ordinary unit tests free of Azure, network, filesystem, and credentials.
+- Assert dependency calls only when the interaction is part of the contract.
+- Use Arrange, Act, Assert and the [test naming convention](naming-conventions.md#test-names).
+- Avoid private-method, incidental logging, and framework-internals assertions.
+- Account for platform-sensitive fonts/rasterization in image comparisons.
 
-- Keep domain and application unit tests free of Azure, network, filesystem,
-  real Avalonia windows, and real credentials.
-- Test through public behavior and application-owned ports.
-- Keep test data explicit, including user IDs, template IDs, asset IDs, image
-  dimensions, and render limits.
-- Use Arrange, Act, Assert structure.
-- Verify dependency calls only when the interaction is part of the behavior.
-- Avoid testing private methods, logging call shape, DI registration internals,
-  or incidental collection implementation.
-- Use the naming pattern in
-  [`naming-conventions.md`](naming-conventions.md#test-names).
-
-## Application Tests
-
-- Test handlers through repository, identity, storage, and rendering ports.
-- Verify request models map to domain values correctly.
-- Verify ownership checks happen before content access or rendering.
-- Cover validation, not-found, forbidden, conflict, timeout, cancellation, and
-  dependency-failure paths.
-- Verify returned results contain only caller-owned identifiers and safe error
-  information.
-
-## Rendering Tests
-
-- Use a small fixed corpus of allowed and rejected AXAML templates.
-- Cover text and image parameters, missing values, unknown parameters, invalid
-  assets, maximum dimensions, timeouts, and malformed markup.
-- Compare deterministic metadata or approved image snapshots where pixel output
-  is the contract. Keep platform-sensitive font and raster differences out of
-  brittle exact comparisons.
-- Add regression tests for any template that previously escaped a sandbox or
-  exhausted resources.
-
-## Integration Tests
-
-- Keep tests that require Azure emulators, a Functions host, or the real
-  Avalonia adapter separate from unit tests.
-- Default integration tests to local emulators and isolated resources.
-- Require explicit opt-in before using a real Azure subscription or deployed
-  endpoint.
-- Create unique test resources and delete only resources created by that run.
-- Keep endpoints, tokens, connection strings, and user-specific values outside
-  tracked files.
-
-Runnable commands live in [`build-and-test.md`](build-and-test.md).
+Tests do not prove hosted sign-in, consent, CORS, Linux compatibility, or arbitrary
+AXAML isolation. Verify the environment separately using
+[deployment checks](../../operations/deployment.md#verify-the-applications).
+Real-resource checks require explicit opt-in; use isolated resources and clean
+up only what the run created.

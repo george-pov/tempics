@@ -1,58 +1,35 @@
-# API Build And Test
+# API Commands
 
-Run these commands from the repository root unless noted.
+Run from the repository root unless shown otherwise. Use .NET 10.
 
-## Restore And Build
+## Build And Test
 
 ```powershell
 dotnet restore src/api/Tempics.slnx
 dotnet build src/api/Tempics.slnx --no-restore
+dotnet test --solution src/api/Tempics.slnx
 ```
 
-## Tests
-
-Run every backend test project included in the solution:
-
-```powershell
-dotnet test src/api/Tempics.slnx
-```
-
-The solution contains `TP.Application`, `TP.Avalonia`, `TP.AzureFunctions`, and
-the `TP.Api.Tests` test project.
-
-If the configured Microsoft Testing Platform runner reports zero tests, invoke
-the xUnit executable directly. Release also avoids files held by a running
-Debug host:
+The root global.json selects Microsoft.Testing.Platform. If the runner reports
+zero tests, invoke the xUnit executable directly:
 
 ```powershell
 dotnet run --project src/api/TP.Api.Tests/TP.Api.Tests.csproj -c Release -- -noLogo
 ```
 
-## Local Functions Host
+Release avoids files held by a running Debug host. A zero-test run is not test
+proof. See [testing guidance](testing.md) and
+[Microsoft's MTP command reference](https://learn.microsoft.com/en-us/dotnet/core/tools/dotnet-test-mtp).
 
-Azure Functions Core Tools v4 is required:
+## Run Locally
 
-Configure the four `Auth__*` values in the ignored `local.settings.json` first;
-see [API authentication](../authentication.md). Local requests require a real
-Entra API access token, just like hosted requests.
+Complete [local configuration and emulator setup](../../getting-started.md), then:
 
 ```powershell
 Set-Location src/api/TP.AzureFunctions
 func start --port 7159 --cors http://localhost:4200
 ```
 
-The UI calls the API directly. Permit only its exact local origin; if using a
-different UI port, replace the CORS origin in this invocation. Do not enable a
-wildcard or `--cors-credentials` for the sample flow. Match the API address in
-the UI's ignored `public/config.json`; see
-[UI configuration](../../ui/development/configuration.md).
-
-The `TP.AzureFunctions` launch profile declares
-`--port 7159 --cors http://localhost:4200`. With the current Worker SDK,
-`dotnet run --launch-profile TP.AzureFunctions` was observed to start Core Tools
-on its default port 7071 without applying those arguments. Use the explicit
-`func start` command above when starting from a terminal. Verify port and CORS
-when using an IDE launcher; profile contents alone do not prove host behavior.
-
-Do not put local secrets in tracked settings files. Starting the host is runtime
-validation and must not be performed during plan-only or task-design work.
+Use the explicit Core Tools command. The launch profile's port/CORS arguments
+have not reliably been applied by dotnet run. Check the actual port and exact
+UI origin when using an IDE. Do not use wildcard or credentialed CORS.

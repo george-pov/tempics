@@ -1,11 +1,14 @@
 # Tempics
 
-Tempics is an Azure-hosted web application for creating reusable image
-templates in Avalonia AXAML and rendering them as PNG images.
+Tempics renders Avalonia AXAML as PNG images through an Angular web application
+and an Azure Functions API.
 
 ## Documentation
 
-- Durable documentation index: [`docs/README.md`](docs/README.md)
-- Architecture overview: [`docs/architecture.md`](docs/architecture.md)
-- API documentation: [`docs/api/README.md`](docs/api/README.md)
-- UI documentation: [`docs/ui/README.md`](docs/ui/README.md)
+- [Documentation index](docs/README.md)
+- [Run locally](docs/getting-started.md)
+- [Current architecture](docs/architecture.md)
+- [Product target](docs/product.md)
+- [API documentation](docs/api/README.md)
+- [UI documentation](docs/ui/README.md)
+- [Operations](docs/operations/README.md)

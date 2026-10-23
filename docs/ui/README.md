@@ -1,39 +1,27 @@
-# UI Docs
+# UI Documentation
 
-Durable documentation for the Angular frontend under `src/ui/`.
+The Angular workspace is `src/ui/`. Start with
+[local setup](../getting-started.md) to sign in and generate a sample image.
 
-## Ownership
+## Reference
 
-- Source of truth: frontend structure, coding rules, naming, styling, testing,
-  and local commands.
-- Update when: UI boundaries, development practices, or indexed files change.
-- Validate with: compare this index against `rg --files docs/ui`, verify links,
-  and run `git diff --check`.
+- [Architecture](architecture.md): routes, shell, session, state, and API access.
+- [Runtime configuration](development/configuration.md): JSON contract and startup.
+- [Component Lab](development/component-lab.md): shared-control examples.
 
-## Contents
+## Development
 
-- Architecture: [`architecture.md`](architecture.md)
-- Development guidelines:
-  [`development/development-guidelines.md`](development/development-guidelines.md)
-- Naming conventions:
-  [`development/naming-conventions.md`](development/naming-conventions.md)
-- Styling guidance: [`development/styling.md`](development/styling.md)
-- Testing guidance: [`development/testing.md`](development/testing.md)
-- Runtime configuration: [`development/configuration.md`](development/configuration.md)
-- Azure Storage hosting: [`../operations/ui-storage.md`](../operations/ui-storage.md)
-- Shared component visual workbench:
-  [`development/component-lab.md`](development/component-lab.md)
-- Build and test commands:
-  [`development/build-and-test.md`](development/build-and-test.md)
+- [Development standards](development/development-guidelines.md)
+- [Naming conventions](development/naming-conventions.md)
+- [Styling](development/styling.md)
+- [Testing guidance](development/testing.md)
+- [Build and test commands](development/build-and-test.md)
 
-## Scope
+## Related Guides
 
-UI docs own:
-
-- Browser routes, pages, components, forms, accessibility, and interaction
-  state.
-- Typed API clients and browser-side contract mapping.
-- Frontend development, naming, styling, build, test, and deployment guidance.
-
-Backend HTTP contracts, authorization, persistence, rendering, and Azure
-Functions guidance belong in [`../api/`](../api/).
+- [API endpoints](../api/endpoints.md): canonical HTTP contracts.
+- [Entra setup](../operations/entra-setup.md): registration values and redirects.
+- [UI hosting](../operations/ui-storage.md): static route, MIME, and cache contract.
+- [Application deployment](../operations/deployment.md): publication and recovery.
+- [Product target](../product.md): intended capabilities beyond the sample flow.
+- [Documentation index](../README.md)

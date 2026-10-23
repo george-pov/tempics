@@ -1,99 +1,33 @@
-# UI On Azure Storage
+# UI Hosting Contract
 
-The dev Angular UI is hosted by the static website feature of the dedicated
-`sttempicsuidev` storage account in `rg-tempics-dev`, West US 2. The account uses
-StorageV2 and Standard_LRS. It is separate from the Function's storage account.
+[ui-storage.bicep](../../bicep/ui-storage.bicep) defines the separate UI storage
+account and static website. Read its address from `uiWebsiteUrl`; do not infer
+the regional hostname or put environment URLs in tracked docs.
 
-Read the website address from the `uiWebsiteUrl` deployment output. Keep actual
-environment URLs in local configuration or deployment notes.
+## Content
 
-## Hosting Contract
+- `$web` contains public compiled assets and runtime JSON.
+- `index.html` is the entry; `404.html` is a standalone error page.
+- Each supported direct route has an explicit entry blob and directory index,
+  copied from the root entry. The [UI workflow](../../.github/workflows/deploy-ui.yml)
+  owns the route list.
+- There is no general SPA rewrite. Missing assets/configuration return 404.
+- Serve HTML, JSON, and assets with correct MIME types, including font/woff2.
+  Configuration must not redirect or fall back to HTML.
+- Current uploads use Cache-Control: no-store.
 
-- `$web` contains public compiled UI assets and public dev `config.json`.
-- The index document is `index.html`; the error document is `404.html`.
-- Known routes `/image-generator` and `/component-lab` each have an explicit entry blob
-  and a directory `index.html`, copied from the root entry page. Keep these
-  aligned on deployment.
-- Missing assets and configuration return HTTP 404. The error page does not load
-  Angular. Storage has no general SPA rewrite configuration; add entry blobs for
-  future routes or design a separate routing layer when needed.
-- Deployment sets blob content types and `Cache-Control: no-store`. This simple
-  dev policy also avoids stale entry pages/configuration during manual updates.
-- The account requires HTTPS/TLS 1.2 and disables Shared Key and ordinary public
-  blob access. Static website files remain publicly readable at the web endpoint.
-- Uploads use Azure login. The operator's Storage Blob Data Contributor role is
-  scoped to `$web`; resource administration remains separate.
-- API calls use the absolute URL in runtime JSON. CORS rules are configured
-  manually on the API, including support for `Authorization`.
-  The UI sends an Entra API access token and the API validates it before rendering.
-  No Function key is included in deployed JSON. Runtime auth settings and
-  the Entra SPA registration must agree on the UI's root redirect URL.
+## Access And Recovery
 
-## Provision Infrastructure With Bicep
+The account requires HTTPS and disables Shared Key and ordinary anonymous blob
+access. Static website content remains public despite the private container.
+Publish using Azure login with a grant scoped to `$web`; Owner alone does not
+grant blob data access.
 
-Run the subscription deployment in [the Azure infrastructure guide](azure-dev.md).
-`bicep/dev.bicepparam` selects `sttempicsuidev`; `bicep/main.bicep` creates the
-resource group and includes `bicep/ui-storage.bicep` through the resource module.
+Bicep creates settings/container, not files or per-blob content properties.
+An empty provisioned website returns 404. [GitHub setup](github-setup.md) owns
+publishing access; operator grants are separate.
 
-The UI module declares the account, Blob service static website settings, and
-private `$web` container. It sets the index/error document names directly through
-storage API version 2025-08-01. No CLI deployment script, account key, website
-upload, or extra website-enable command is required.
-
-The same subscription deployment creates the infrastructure when the group is
-absent. It also updates an existing group without uploading or deleting UI blobs.
-An empty site returning 404 is expected after fresh provisioning. The actual
-website URL is returned as `uiWebsiteUrl`; do not infer its regional suffix.
-
-## Application Pipeline Boundary
-
-The [GitHub UI workflow](github-dev.md#4-deploy) owns
-repeatable UI publication. It implements this sequence:
-
-1. Install locked dependencies and build the UI.
-2. Parse `UI_APP_CONFIG_JSON`, remove any obsolete `functionKey`, and write
-   `config.json` in the compiled output.
-3. Include `404.html` and the current route entry copies for Image Generator and Component Lab.
-4. Upload the compiled directory to `$web` using Azure login and a scoped identity.
-5. Let Azure CLI infer asset content types and explicitly set `text/html` for
-   Image Generator and Component Lab entries. Set `Cache-Control: no-store` on all uploads.
-
-Successful Azure CLI completion is the deployment result. The workflow does not
-run tests, hash checks, HTTP probes, or browser startup checks.
-
-The dedicated manual access template defines the publishing identity's Storage
-Blob Data Contributor grant on `$web`. Apply it and configure GitHub separately
-before the first UI dispatch. A resource Owner role alone does not
-provide blob data access. The manually assigned operator role from the first
-publication is not embedded in Bicep or restored during group recreation.
-
-Bicep does not build Angular, generate runtime JSON, upload entry pages/assets,
-set blob content properties, configure GitHub, or change API CORS. See
-[runtime configuration](../ui/development/configuration.md) for the shared
-configuration contract. Keep local settings, source maps, secrets, and tokens
-out of uploads. Deploy the bearer-protected API before the UI that uses it.
-
-## Verify And Recover
-
-After infrastructure creation, verify the account security properties, the
-enabled website/index/error settings, and the private `$web` container. An empty
-website returning 404 is expected until the application pipeline publishes it.
-
-Application deployment relies on Azure CLI success. For optional troubleshooting,
-inspect the relevant page, asset, or configuration response. API CORS and
-authenticated rendering are separate from website publication.
-
-For a failed upload, inspect the error and repeat the reviewed package upload.
-For bad configuration, correct `UI_APP_CONFIG_JSON` in GitHub and redeploy.
-For rollback, republish a compatible saved application/configuration pair.
-Do not delete the API's storage or resource group as website recovery.
-
-The workflow does not retain artifacts or produce blob maps/manifests. Uploads
-are not atomic, and old assets remain available. Restore an earlier source
-revision on `main` through the authorized Git process and dispatch again, or
-manually republish a saved compatible application/configuration pair. See the
-[UI workflow runbook](github-dev.md#4-deploy) for commands.
-
-## Reference
-
-[Azure Storage static website hosting](https://learn.microsoft.com/en-us/azure/storage/blobs/storage-blob-static-website)
+Uploads are non-atomic and retain old assets. Check direct-route reloads, JSON,
+MIME types, and missing-file behavior after publication. Follow
+[deployment verification/recovery](deployment.md); API CORS and sign-in are
+separate from website publication.
