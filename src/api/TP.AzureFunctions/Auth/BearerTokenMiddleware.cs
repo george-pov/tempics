@@ -23,6 +23,7 @@ public sealed class BearerTokenMiddleware : IFunctionsWorkerMiddleware
             return;
         }
 
+        http.Response.Headers.CacheControl = "no-store";
         var result = await http.AuthenticateAsync(JwtBearerDefaults.AuthenticationScheme);
         if (!result.Succeeded || result.Principal is null)
         {

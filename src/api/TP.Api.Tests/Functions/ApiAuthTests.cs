@@ -69,6 +69,7 @@ public sealed class ApiAuthTests : IDisposable
         Assert.False(invoked);
         Assert.Equal(StatusCodes.Status401Unauthorized, http.Response.StatusCode);
         Assert.Equal("Bearer", http.Response.Headers.WWWAuthenticate.ToString());
+        Assert.Equal("no-store", http.Response.Headers.CacheControl.ToString());
         Assert.Equal(0, http.Response.Body.Length);
         Assert.False(http.User.Identity?.IsAuthenticated ?? false);
     }
@@ -91,6 +92,7 @@ public sealed class ApiAuthTests : IDisposable
 
         Assert.False(invoked);
         Assert.Equal(StatusCodes.Status403Forbidden, http.Response.StatusCode);
+        Assert.Equal("no-store", http.Response.Headers.CacheControl.ToString());
         Assert.Equal(0, http.Response.Body.Length);
     }
 
@@ -135,8 +137,14 @@ public sealed class ApiAuthTests : IDisposable
 
     private DefaultHttpContext NewHttpContext(string scenario)
     {
-        var http = new DefaultHttpContext { RequestServices = _services };
-        http.Response.Body = new MemoryStream();
+        var http = new DefaultHttpContext
+        {
+            RequestServices = _services,
+            Response =
+            {
+                Body = new MemoryStream()
+            }
+        };
         if (scenario == "function-key")
         {
             http.Request.Headers["x-functions-key"] = "fixture-obsolete-key";
@@ -154,6 +162,20 @@ public sealed class ApiAuthTests : IDisposable
         using var otherRsa = RSA.Create(2048);
         var key = scenario == "wrong-signature" ? new RsaSecurityKey(otherRsa) : _key;
         var now = DateTime.UtcNow;
+        return new JsonWebTokenHandler().CreateToken(new SecurityTokenDescriptor
+        {
+            Issuer = scenario == "wrong-issuer" ? "https://attacker.example.test/" + Tenant + "/v2.0" : Issuer,
+            Audience = scenario is "wrong-audience" or "id-token" ? "55555555-5555-5555-5555-555555555555" : Audience,
+            Claims = CreateClaims(scenario),
+            IssuedAt = now.AddMinutes(-20),
+            NotBefore = scenario == "future" ? now.AddMinutes(20) : now.AddMinutes(-20),
+            Expires = scenario == "expired" ? now.AddMinutes(-10) : now.AddMinutes(30),
+            SigningCredentials = scenario == "unsigned" ? null : new SigningCredentials(key, SecurityAlgorithms.RsaSha256)
+        });
+    }
+
+    private static Dictionary<string, object> CreateClaims(string scenario)
+    {
         var claims = new Dictionary<string, object>
         {
             ["tid"] = scenario == "wrong-tenant" ? "44444444-4444-4444-4444-444444444444" : Tenant,
@@ -168,19 +190,22 @@ public sealed class ApiAuthTests : IDisposable
                 _ => "Images.Render"
             }
         };
-        if (scenario is "id-token" or "app-only") claims.Remove("scp");
-        if (scenario == "missing-object-id") claims.Remove("oid");
-        if (scenario == "app-only") claims["roles"] = new[] { "Images.Render" };
-        return new JsonWebTokenHandler().CreateToken(new SecurityTokenDescriptor
+        switch (scenario)
         {
-            Issuer = scenario == "wrong-issuer" ? "https://attacker.example.test/" + Tenant + "/v2.0" : Issuer,
-            Audience = scenario is "wrong-audience" or "id-token" ? "55555555-5555-5555-5555-555555555555" : Audience,
-            Claims = claims,
-            IssuedAt = now.AddMinutes(-20),
-            NotBefore = scenario == "future" ? now.AddMinutes(20) : now.AddMinutes(-20),
-            Expires = scenario == "expired" ? now.AddMinutes(-10) : now.AddMinutes(30),
-            SigningCredentials = scenario == "unsigned" ? null : new SigningCredentials(key, SecurityAlgorithms.RsaSha256)
-        });
+            case "id-token" or "app-only":
+                claims.Remove("scp");
+                break;
+            case "missing-object-id":
+                claims.Remove("oid");
+                break;
+        }
+
+        if (scenario == "app-only")
+        {
+            claims["roles"] = new[] { "Images.Render" };
+        }
+
+        return claims;
     }
 
     private static IConfigurationRoot Configuration() => new ConfigurationBuilder()

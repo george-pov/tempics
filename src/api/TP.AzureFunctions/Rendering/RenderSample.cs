@@ -20,39 +20,14 @@ public sealed class RenderSample(
     {
         var correlationId = request.HttpContext.TraceIdentifier;
         var started = Stopwatch.GetTimestamp();
+        request.HttpContext.Response.Headers.CacheControl = "no-store";
 
-        try
-        {
-            var result = await handler.HandleAsync(new RenderSampleQuery(), cancellationToken);
-            request.HttpContext.Response.Headers.CacheControl = "no-store";
+        var result = await handler.HandleAsync(new RenderSampleQuery(), cancellationToken);
+        logger.LogInformation(
+            "RenderSampleSucceeded {CorrelationId} {ElapsedMs} {OutputBytes}",
+            correlationId, Stopwatch.GetElapsedTime(started).TotalMilliseconds,
+            result.PngBytes.Length);
 
-            logger.LogInformation(
-                "RenderSampleSucceeded {CorrelationId} {ElapsedMs} {OutputBytes}",
-                correlationId, Stopwatch.GetElapsedTime(started).TotalMilliseconds,
-                result.PngBytes.Length);
-
-            return new FileContentResult(result.PngBytes, "image/png");
-        }
-        catch (Exception exception) when (exception is not OperationCanceledException)
-        {
-            logger.LogError(
-                "RenderSampleFailed {CorrelationId} {ElapsedMs} {Outcome} {ExceptionType}",
-                correlationId, Stopwatch.GetElapsedTime(started).TotalMilliseconds,
-                "failed", exception.GetType().Name);
-
-            var problem = new ProblemDetails
-            {
-                Status = StatusCodes.Status500InternalServerError,
-                Title = "Image rendering failed"
-            };
-            problem.Extensions["code"] = "render_failed";
-            problem.Extensions["correlationId"] = correlationId;
-
-            return new ObjectResult(problem)
-            {
-                StatusCode = StatusCodes.Status500InternalServerError,
-                ContentTypes = { "application/problem+json" }
-            };
-        }
+        return new FileContentResult(result.PngBytes, "image/png");
     }
 }

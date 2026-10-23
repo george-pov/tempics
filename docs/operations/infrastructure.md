@@ -8,14 +8,19 @@ Use the intended Azure login/subscription and completed [Entra setup](entra-setu
 
 - [dev.bicepparam](../../bicep/dev.bicepparam): development names and capacity.
 - [main.bicep](../../bicep/main.bicep) and [resources.bicep](../../bicep/resources.bicep):
-  resource group, Function, host/package storage, UI storage, and monitoring.
-- [storage-access.bicep](../../bicep/storage-access.bicep): runtime storage grants.
+  resource group, Function, host/package storage, UI storage, dedicated template
+  account and `Templates` table, and monitoring.
+- [storage-access.bicep](../../bicep/storage-access.bicep): runtime grants,
+  including Table Data Contributor on the template account for the Function identity.
 - [ui-storage.bicep](../../bicep/ui-storage.bicep): static website settings.
 
 These definitions support dev only. They own the Function app-settings collection,
-including auth settings. Publication, manual CORS, GitHub access, operator grants,
-and undeclared alerts are separate. Recreating infrastructure does not restore
-application packages, UI files, stored data, or those manual settings.
+including auth settings and `TemplateStore__TableServiceUri` from the dedicated
+account's Table endpoint. Shared Key is disabled. Publication, manual CORS,
+GitHub access, operator grants, and undeclared alerts are separate. Recreating
+infrastructure does not restore application packages, UI files, template rows,
+or those manual settings. Decide template retention, backup, and recovery before
+production use.
 
 ## Preview And Apply
 
@@ -48,7 +53,8 @@ az deployment sub create --subscription $subscriptionId --location $location --n
 az deployment sub show --subscription $subscriptionId --name $deploymentName --query properties.outputs -o json
 ```
 
-Check deployment success, resources, runtime grants, and website settings.
+Check deployment success, all three storage accounts, the `Templates` table,
+runtime grants, the template URI setting, and website settings.
 Read actual addresses from outputs; keep them outside tracked docs. An empty
 website returning 404 is expected before publication. Continue with
 [GitHub setup](github-setup.md) and [deployment](deployment.md).
@@ -56,5 +62,7 @@ website returning 404 is expected before publication. Continue with
 ## Recovery
 
 Correct failed inputs/templates and rerun the preview. Incremental deployment
-does not undo partial creation or roll back code. Verify identity grants before
-retrying a storage authorization failure; do not enable Shared Key as a workaround.
+does not undo partial creation or roll back code. Verify the template account,
+table, URI setting, and identity grant before retrying a storage authorization
+failure; do not enable Shared Key as a workaround. Recover deleted template data
+from a separately established backup, not by redeploying Bicep.

@@ -6,6 +6,7 @@ param functionAppName string
 param functionPlanName string
 param storageName string
 param uiStorageName string
+param templateStorageName string
 param insightsName string
 param workspaceName string
 param packageContainerName string
@@ -63,6 +64,36 @@ resource packageContainer 'Microsoft.Storage/storageAccounts/blobServices/contai
   properties: {
     publicAccess: 'None'
   }
+}
+
+resource templateStorage 'Microsoft.Storage/storageAccounts@2025-08-01' = {
+  name: templateStorageName
+  location: location
+  tags: union(baseTags, { Component: 'Templates' })
+  kind: 'StorageV2'
+  sku: {
+    name: 'Standard_LRS'
+  }
+  properties: {
+    accessTier: 'Hot'
+    allowBlobPublicAccess: false
+    allowCrossTenantReplication: false
+    allowSharedKeyAccess: false
+    defaultToOAuthAuthentication: true
+    minimumTlsVersion: 'TLS1_2'
+    publicNetworkAccess: 'Enabled'
+    supportsHttpsTrafficOnly: true
+  }
+}
+
+resource templateTableService 'Microsoft.Storage/storageAccounts/tableServices@2025-08-01' = {
+  parent: templateStorage
+  name: 'default'
+}
+
+resource templatesTable 'Microsoft.Storage/storageAccounts/tableServices/tables@2025-08-01' = {
+  parent: templateTableService
+  name: 'Templates'
 }
 
 resource workspace 'Microsoft.OperationalInsights/workspaces@2025-02-01' = {
@@ -144,6 +175,10 @@ resource functionApp 'Microsoft.Web/sites@2024-11-01' = {
           value: 'managedidentity'
         }
         {
+          name: 'TemplateStore__TableServiceUri'
+          value: templateStorage.properties.primaryEndpoints.table
+        }
+        {
           name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
           value: insights.properties.ConnectionString
         }
@@ -184,6 +219,7 @@ module storageAccess './storage-access.bicep' = {
   name: 'storage-access'
   params: {
     storageName: storage.name
+    templateStorageName: templateStorage.name
     principalId: functionApp.identity.principalId
   }
 }
@@ -192,3 +228,4 @@ output functionAppName string = functionApp.name
 output functionAppUrl string = 'https://${functionApp.properties.defaultHostName}'
 output uiStorageName string = uiStorage.outputs.storageName
 output uiWebsiteUrl string = uiStorage.outputs.websiteUrl
+output templateStorageName string = templateStorage.name

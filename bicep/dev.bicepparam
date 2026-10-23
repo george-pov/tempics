@@ -7,6 +7,7 @@ param functionAppName = 'func-tempics-api-dev'
 param functionPlanName = 'asp-tempics-api-dev'
 param storageName = 'sttempicsfuncdev'
 param uiStorageName = 'sttempicsuidev'
+param templateStorageName = 'sttempicstpldev'
 param insightsName = 'appi-tempics-api-dev'
 param workspaceName = 'log-tempics-dev'
 param maxInstances = 10

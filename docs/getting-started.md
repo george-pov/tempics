@@ -14,6 +14,8 @@ Create `src/api/TP.AzureFunctions/local.settings.json` only if absent:
   "IsEncrypted": false,
   "Values": {
     "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "TemplateStore__ConnectionString": "UseDevelopmentStorage=true",
+    "TemplateStore__CreateResourcesIfMissing": "true",
     "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated",
     "Auth__Instance": "https://tenant.example.test/",
     "Auth__TenantId": "11111111-1111-1111-1111-111111111111",
@@ -25,6 +27,8 @@ Create `src/api/TP.AzureFunctions/local.settings.json` only if absent:
 
 Replace all four auth fixtures with your API settings; see
 [authentication](api/authentication.md#configuration). Preserve existing settings.
+The template settings connect to the local Azurite Table service and create the
+`Templates` table when the API starts. They do not configure hosted storage.
 
 From `src/ui/`, create the UI configuration only if absent:
 
@@ -40,9 +44,20 @@ at `http://localhost:4200/`. Both settings files stay local; fixture IDs cannot 
 
 ## Start
 
-Keep these three terminals running. Begin the API/UI terminals at the repository root.
+Visual Studio 2026 starts Azurite for the API debug session through
+`src/api/TP.AzureFunctions/Properties/serviceDependencies.local.json`. For
+`func start`, check ports 10000-10002 and their owning process. Start Azurite
+with the command below if it is not running. Run the API and UI from the
+repository root in separate terminals.
 
-Storage emulator:
+Storage emulator check:
+
+```powershell
+Get-NetTCPConnection -LocalPort 10000,10001,10002 -State Listen -ErrorAction SilentlyContinue |
+    Select-Object LocalPort, OwningProcess
+```
+
+Start Azurite only if it is not already running:
 
 ```powershell
 $azuriteData = Join-Path $env:LOCALAPPDATA 'Tempics/Azurite'

@@ -1,7 +1,8 @@
 # API Authentication
 
 All HTTP Functions require an Entra v2 API access token with delegated
-`Images.Render` scope. This applies locally and in Azure.
+`Images.Render` scope, including the saved-template routes. This applies locally
+and in Azure.
 
 Microsoft.Identity.Web validates signature, issuer, audience, and lifetime.
 The worker additionally checks tenant, v2 token version, a nonempty GUID user
@@ -22,10 +23,19 @@ App settings:
 | `Auth__TenantId` | External tenant GUID. |
 | `Auth__ClientId` | API client ID GUID, not the SPA or deployment identity. |
 | `Auth__Issuer` | Exact issuer from v2 OpenID discovery. |
+| `TemplateStore__TableServiceUri` | Hosted table service URI of the dedicated template account; Azure requires HTTPS. |
+| `TemplateStore__ConnectionString` | Local Azurite shortcut: `UseDevelopmentStorage=true`. Use this instead of the table service URI for local template storage. |
+| `TemplateStore__CreateResourcesIfMissing` | Set to `true` with local Azurite storage to create the `Templates` table at API startup. |
 
-Settings are validated at startup. Read the issuer from discovery; its host can
-differ from the UI authority. The v2 audience is the API client ID; the SPA
-requests the full exposed scope URI.
+Auth settings are validated at startup. Hosted startup requires the table
+service URI and uses managed identity. The connection string and resource
+creation switch are for local Azurite only. Without local template storage
+configuration, the sample route can start but template requests return a safe
+unavailable response.
+
+Read the issuer from discovery; its host can differ from
+the UI authority. The v2 audience is the API client ID; the SPA requests the
+full exposed scope URI.
 
 Use [Entra setup](../operations/entra-setup.md) to obtain values and
 [local setup](../getting-started.md) or [infrastructure](../operations/infrastructure.md)

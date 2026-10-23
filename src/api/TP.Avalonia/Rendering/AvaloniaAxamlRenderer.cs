@@ -44,7 +44,7 @@ public sealed class AvaloniaAxamlRenderer(AvaloniaRenderHost renderHost) : IAxam
 
         if (loaded is not Control control ||
             !double.IsFinite(control.Width) || !double.IsFinite(control.Height) ||
-            control.Width != ImageWidth || control.Height != ImageHeight)
+            Math.Abs(control.Width - ImageWidth) > 0.1 || Math.Abs(control.Height - ImageHeight) > 0.1)
         {
             throw new RenderImageException();
         }

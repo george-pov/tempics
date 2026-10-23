@@ -1,5 +1,4 @@
 using System.Reflection;
-using System.Text.Json;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Functions.Worker;
@@ -36,36 +35,20 @@ public sealed class RenderSampleTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task RunAsync_RenderFails_ReturnsSafeProblem(bool applicationFailure)
+    public async Task RunAsync_RenderFails_PropagatesToMiddleware(bool applicationFailure)
     {
         const string privateMessage = "private-path AXAML-content PNG-content configuration-value";
-        const string headerValue = "private-request-header";
         var cause = new InvalidOperationException(privateMessage);
         Exception failure = applicationFailure ? new RenderImageException(cause) : cause;
         var renderer = new RendererStub(_ => Task.FromException<RenderImageResult>(failure));
         var function = CreateFunction(renderer);
         var context = new DefaultHttpContext { TraceIdentifier = "sample-correlation" };
-        context.Request.Headers["X-Test-Private"] = headerValue;
 
-        var result = await function.RunAsync(context.Request, CancellationToken.None);
+        var observed = await Record.ExceptionAsync(() =>
+            function.RunAsync(context.Request, CancellationToken.None));
 
-        var response = Assert.IsType<ObjectResult>(result);
-        Assert.Equal(StatusCodes.Status500InternalServerError, response.StatusCode);
-        Assert.Equal("application/problem+json", Assert.Single(response.ContentTypes));
-        var problem = Assert.IsType<ProblemDetails>(response.Value);
-        Assert.Equal(StatusCodes.Status500InternalServerError, problem.Status);
-        Assert.Equal("Image rendering failed", problem.Title);
-        Assert.Equal("render_failed", problem.Extensions["code"]);
-        Assert.Equal(context.TraceIdentifier, problem.Extensions["correlationId"]);
-        Assert.Equal(2, problem.Extensions.Count);
-        Assert.Null(problem.Detail);
-        Assert.Null(problem.Instance);
-        var json = JsonSerializer.Serialize(problem);
-        Assert.DoesNotContain(privateMessage, json);
-        Assert.DoesNotContain(headerValue, json);
-        Assert.DoesNotContain(nameof(InvalidOperationException), json);
-        Assert.DoesNotContain(nameof(RenderImageException), json);
-        Assert.DoesNotContain("stack", json, StringComparison.OrdinalIgnoreCase);
+        Assert.Same(failure, observed);
+        Assert.Equal("no-store", context.Response.Headers.CacheControl.ToString());
     }
 
     [Fact]

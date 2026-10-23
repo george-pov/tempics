@@ -11,6 +11,7 @@
     <ProjectReference Include="../TP.Application/TP.Application.csproj" />
     <ProjectReference Include="../TP.Avalonia/TP.Avalonia.csproj" />
     <ProjectReference Include="../TP.AzureFunctions/TP.AzureFunctions.csproj" />
+    <ProjectReference Include="../TP.TableStorage/TP.TableStorage.csproj" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.10.0" />
     <PackageReference Include="xunit.v3" Version="4.0.1" />
     <PackageReference Include="xunit.runner.visualstudio" Version="4.0.0">
