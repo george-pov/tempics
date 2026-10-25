@@ -1,0 +1,23 @@
+@use '../../../../styles/variables' as *;
+
+:host {
+  display: block;
+  min-width: 0;
+}
+
+mat-form-field {
+  width: 100%;
+}
+
+textarea {
+  max-height: 28rem;
+  resize: vertical;
+}
+
+.is-monospace {
+  font-family: $app-font-mono;
+}
+
+mat-hint.is-error {
+  color: $app-color-error-text;
+}

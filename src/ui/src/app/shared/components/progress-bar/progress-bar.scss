@@ -1,0 +1,9 @@
+@use 'src/styles/variables' as *;
+
+:host {
+  display: block;
+}
+
+p {
+  margin-bottom: $app-space-2;
+}

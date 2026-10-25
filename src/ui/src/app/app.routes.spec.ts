@@ -105,12 +105,30 @@ describe('Image Generator route', () => {
 });
 
 describe('Component Lab route', () => {
-  it('opens the button workbench directly without API providers', async () => {
+  it('opens and selects each shared-control example without API providers', async () => {
     TestBed.configureTestingModule({ providers: [provideRouter(routes)] });
     const harness = await RouterTestingHarness.create('/component-lab');
     expect(harness.routeNativeElement?.querySelector('h1')?.textContent).toBe('Component Lab');
     expect(harness.routeNativeElement?.querySelector('h2')?.textContent).toBe('Button');
     expect(harness.routeNativeElement?.querySelector('app-button button')).not.toBeNull();
+    const examples = [
+      ['Button Link', 'app-button-link a'],
+      ['Icon', 'app-icon'],
+      ['Input', 'app-input input'],
+      ['Alert', 'app-alert[role="status"]'],
+      ['Progress Bar', 'app-progress-bar [role="progressbar"]'],
+    ] as const;
+    for (const [label, selector] of examples) {
+      const item = Array.from(
+        harness.routeNativeElement!.querySelectorAll<HTMLButtonElement>('nav[aria-label="Components"] button'),
+      ).find((button) => button.textContent?.trim() === label);
+      expect(item, `Lab entry ${label}`).toBeDefined();
+      item!.click();
+      harness.detectChanges();
+      expect(harness.routeNativeElement?.querySelector('h2')?.textContent).toBe(label);
+      expect(harness.routeNativeElement?.querySelector(selector)).not.toBeNull();
+    }
+    expect(TestBed.inject(Router).url).toBe('/component-lab');
   });
 });
 

@@ -2,11 +2,13 @@ import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { finalize, tap } from 'rxjs';
 import { Button } from '../../shared/components/button/button';
+import { Alert } from '../../shared/components/alert/alert';
+import { ProgressBar } from '../../shared/components/progress-bar/progress-bar';
 import { ImageRenderApi } from '../../shared/api/image-render/image-render-api';
 
 @Component({
   selector: 'app-image-generator',
-  imports: [Button],
+  imports: [Button, Alert, ProgressBar],
   templateUrl: './image-generator.html',
   styleUrl: './image-generator.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

@@ -25,6 +25,19 @@ owns navigation, the main landmark, page spacing, and route focus.
 - `shared/config/`: startup configuration.
 - `shared/components/`: reusable controls.
 
+## Shared Controls
+
+[Shared components](../../src/ui/src/app/shared/components/) keep Material UI
+dependencies behind app-owned contracts. `Button` is a native action with filled,
+outlined, or text appearance; `ButtonLink` is a routed anchor with the same
+appearances and an optional decorative local icon. `Input` binds a typed string
+form control to a labeled single-line or multiline field. Its caller owns
+validation and supplies hint or error text.
+
+`Alert` presents success or error text with the corresponding status or alert
+role. `ProgressBar` shows labeled indeterminate work with one polite pending
+announcement. Pages own request state and any preview object URL lifetime.
+
 ## Startup And Requests
 
 Public JSON loads before Angular starts. MSAL initialization and redirect

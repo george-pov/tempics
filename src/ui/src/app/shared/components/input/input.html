@@ -1,0 +1,34 @@
+<mat-form-field appearance="outline">
+  <mat-label>{{ label() }}</mat-label>
+  @if (multiline()) {
+    <textarea
+      matInput
+      [id]="fieldId"
+      [formControl]="control()"
+      [class.is-monospace]="monospace()"
+      [attr.aria-invalid]="error() ? 'true' : null"
+      rows="8"
+    ></textarea>
+  } @else {
+    <input
+      matInput
+      [id]="fieldId"
+      type="text"
+      [formControl]="control()"
+      [class.is-monospace]="monospace()"
+      [attr.aria-invalid]="error() ? 'true' : null"
+    />
+  }
+  @if (error() || hint()) {
+    <mat-hint
+      [id]="descriptionId"
+      [attr.role]="error() ? 'alert' : null"
+      [class.is-error]="!!error()"
+    >
+      {{ error() || hint() }}
+    </mat-hint>
+  }
+  @if (showCharacterCount()) {
+    <mat-hint class="count" align="end">{{ characterCount() }} characters</mat-hint>
+  }
+</mat-form-field>

@@ -54,8 +54,12 @@ describe('ImageGenerator', () => {
     return fixture.nativeElement.querySelector('img');
   }
 
-  function status(): string {
-    return fixture.nativeElement.querySelector('[role="status"]').textContent.trim();
+  function progress(): HTMLElement | null {
+    return fixture.nativeElement.querySelector('[role="progressbar"]');
+  }
+
+  function feedback(): HTMLElement | null {
+    return fixture.nativeElement.querySelector('[role="status"], [role="alert"]');
   }
 
   async function succeed(): Promise<void> {
@@ -74,14 +78,18 @@ describe('ImageGenerator', () => {
     await fixture.whenStable();
     expect(renderSample).toHaveBeenCalledOnce();
     expect(button().disabled).toBe(true);
-    expect(status()).toContain('Generating');
+    expect(progress()?.getAttribute('aria-label')).toContain('Generating');
+    expect(fixture.nativeElement.querySelectorAll('[role="status"]')).toHaveLength(1);
+    expect(feedback()?.textContent).toContain('Generating your sample image');
     response.next(png);
     response.complete();
     await fixture.whenStable();
     expect(button().disabled).toBe(false);
     expect(preview()?.getAttribute('src')).toBe('blob:first');
     expect(preview()?.alt.trim()).toBeTruthy();
-    expect(status()).toMatch(/ready/i);
+    expect(progress()).toBeNull();
+    expect(feedback()?.getAttribute('role')).toBe('status');
+    expect(feedback()?.textContent).toMatch(/ready/i);
   });
 
   it('keeps the previous preview during refresh and releases it on replacement and destruction', async () => {
@@ -104,18 +112,21 @@ describe('ImageGenerator', () => {
     button().click();
     response.error(new Error('private backend details'));
     await fixture.whenStable();
-    expect(status()).toMatch(errorFeedback);
+    expect(feedback()?.getAttribute('role')).toBe('alert');
+    expect(feedback()?.textContent).toMatch(errorFeedback);
     expect(fixture.nativeElement.textContent).not.toContain('private backend details');
     expect(preview()).toBeNull();
     expect(button().disabled).toBe(false);
     response = new Subject<Blob>();
     button().click();
     await fixture.whenStable();
-    expect(status()).not.toMatch(errorFeedback);
+    expect(feedback()?.textContent).toContain('Generating your sample image');
+    expect(progress()).not.toBeNull();
     response.next(png);
     response.complete();
     await fixture.whenStable();
     expect(preview()).not.toBeNull();
+    expect(feedback()?.getAttribute('role')).toBe('status');
   });
 
   it('keeps an earlier preview when refresh fails', async () => {
@@ -124,7 +135,8 @@ describe('ImageGenerator', () => {
     button().click();
     response.error(new Error('offline'));
     await fixture.whenStable();
-    expect(status()).toMatch(errorFeedback);
+    expect(feedback()?.getAttribute('role')).toBe('alert');
+    expect(feedback()?.textContent).toMatch(errorFeedback);
     expect(preview()?.getAttribute('src')).toBe('blob:first');
     expect(revokeUrl).not.toHaveBeenCalled();
   });
@@ -137,7 +149,8 @@ describe('ImageGenerator', () => {
     response.next(blob);
     response.complete();
     await fixture.whenStable();
-    expect(status()).toMatch(errorFeedback);
+    expect(feedback()?.getAttribute('role')).toBe('alert');
+    expect(feedback()?.textContent).toMatch(errorFeedback);
     expect(button().disabled).toBe(false);
     expect(createUrl).not.toHaveBeenCalled();
   });

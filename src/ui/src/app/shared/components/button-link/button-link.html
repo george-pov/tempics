@@ -1,0 +1,6 @@
+<a [routerLink]="route()" [matButton]="appearance()">
+  @if (icon(); as iconName) {
+    <app-icon matButtonIcon [name]="iconName" />
+  }
+  <ng-content />
+</a>

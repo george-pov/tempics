@@ -10,15 +10,13 @@
     </app-button>
   </div>
 
-  <p class="app-m-0" role="status" aria-live="polite" aria-atomic="true">
-    @if (isGenerating()) {
-      Generating your sample image...
-    } @else if (errorMessage()) {
-      {{ errorMessage() }}
-    } @else if (previewUrl()) {
-      Your sample image is ready.
-    }
-  </p>
+  @if (isGenerating()) {
+    <app-progress-bar label="Generating your sample image..." />
+  } @else if (errorMessage()) {
+    <app-alert variant="error">{{ errorMessage() }}</app-alert>
+  } @else if (previewUrl()) {
+    <app-alert variant="success">Your sample image is ready.</app-alert>
+  }
 
   @if (previewUrl(); as url) {
     <img class="preview" [src]="url" alt="Generated sample image" width="1200" height="630" />

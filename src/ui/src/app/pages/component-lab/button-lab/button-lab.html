@@ -4,6 +4,11 @@
     <app-button (click)="recordClick()">Generate sample image</app-button>
   </app-lab-example>
 
+  <app-lab-example titleId="button-other-appearances-title" title="Other appearances" itemsLayout="inline">
+    <app-button appearance="outlined" (click)="recordClick()">Outlined action</app-button>
+    <app-button appearance="text" (click)="recordClick()">Text action</app-button>
+  </app-lab-example>
+
   <app-lab-example titleId="button-disabled-title" title="Disabled" itemsLayout="inline">
     <app-button [disabled]="true" (click)="recordClick()">Disabled button</app-button>
   </app-lab-example>

@@ -1,0 +1,24 @@
+<app-lab-page titleId="input-lab-title" title="Input">
+  <app-lab-example titleId="input-text-title" title="Text fields">
+    <div class="app-grid app-gap-4">
+      <app-input [control]="emptyName" label="Empty name" hint="Enter a descriptive name." />
+      <app-input [control]="filledName" label="Filled name" [showCharacterCount]="true" />
+      <app-input [control]="disabledName" label="Disabled name" />
+    </div>
+  </app-lab-example>
+
+  <app-lab-example titleId="input-invalid-title" title="Caller validation">
+    <app-input [control]="requiredName" label="Required name" [error]="requiredNameError()" />
+  </app-lab-example>
+
+  <app-lab-example titleId="input-markup-title" title="Multiline markup">
+    <app-input
+      [control]="markup"
+      label="Sample markup"
+      hint="Edit the local example text."
+      [multiline]="true"
+      [monospace]="true"
+      [showCharacterCount]="true"
+    />
+  </app-lab-example>
+</app-lab-page>
