@@ -22,9 +22,10 @@ and explicit resource ownership. Current boundaries are in
 
 ## Rendering And Errors
 
-- Preserve the bundled-source boundary: no request content or caller-selected
-  paths/URIs reach the loader.
-- Keep dimension/output checks and deterministic native-resource cleanup.
+- Keep the sample route limited to bundled AXAML. The preview route accepts
+  caller AXAML under its request-size limit and renders it in the Function
+  process; do not describe the renderer as a sandbox.
+- Clean up native rendering resources deterministically.
 - Honor queued cancellation without claiming synchronous render preemption.
 - Map failures safely and consistently; do not turn cancellation into an
   ordinary render failure.

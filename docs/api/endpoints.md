@@ -8,7 +8,7 @@
 Send no application payload. Only the bundled template is rendered; request
 content does not select AXAML, assets, paths, or parameters. Nothing is persisted.
 
-## Responses
+### Responses
 
 | Status | Contract |
 | --- | --- |
@@ -30,6 +30,33 @@ alone grant no access.
 
 See [authentication](authentication.md), [local setup](../getting-started.md),
 and [hosted verification](../operations/manual-api-deployment.md#verify-the-hosted-function).
+
+## Render Preview
+
+`POST /api/renders/preview` uses the same bearer token and delegated
+`Images.Render` scope as the sample route. Send exactly one case-sensitive JSON
+member: `{ "template": "..." }`. The entire JSON body must contain at most
+2,048 bytes, and template text must be nonblank and at most 2,048 UTF-16 code
+units. JSON overhead and escaping count toward the body limit.
+Unknown or duplicate members, other value types, and malformed JSON are rejected.
+The route renders the current unsaved AXAML in the Function process with the
+same Avalonia renderer used by the sample route. It does not read template
+storage or persist an image. A preview failure does not prevent saving a valid
+template through `POST /api/templates`.
+
+| Status | Contract |
+| --- | --- |
+| 200 | Raw `image/png`, 1200 x 630 pixels, at most 5 MiB, `Cache-Control: no-store`, no attachment filename. |
+| 400 | `application/problem+json` with code `preview_invalid` for a malformed request or blank template. |
+| 413 | `application/problem+json` with code `preview_too_large` for a body above 2,048 bytes or template text above 2,048 UTF-16 code units. |
+| 500 | `application/problem+json` with code `preview_failed` for AXAML or rendering failure. |
+
+All preview responses use `Cache-Control: no-store`. The existing bodyless
+bearer `401`/`403` behavior applies. Problem responses include a correlation ID
+but no AXAML, internal path, or secret. Cancellation propagates without an
+application-defined status. The shared renderer serializes preview and sample
+work and cannot preempt synchronous rendering after dispatch. See the
+[render boundaries](architecture.md#render-boundaries).
 
 ## Saved Templates
 

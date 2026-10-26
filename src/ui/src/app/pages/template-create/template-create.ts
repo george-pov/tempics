@@ -2,7 +2,8 @@ import { ChangeDetectionStrategy, Component, DestroyRef, computed, inject, signa
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormControl } from '@angular/forms';
 import { Router } from '@angular/router';
-import { finalize, startWith } from 'rxjs';
+import { finalize, startWith, Subscription } from 'rxjs';
+import { ImageRenderApi } from '../../shared/api/image-render/image-render-api';
 import { TemplateApi } from '../../shared/api/templates/template-api';
 import { Alert } from '../../shared/components/alert/alert';
 import { Button } from '../../shared/components/button/button';
@@ -20,8 +21,11 @@ import { INITIAL_TEMPLATE_DRAFT, type TemplateCreateDraft } from './template-cre
 })
 export class TemplateCreate {
   private readonly api = inject(TemplateApi);
+  private readonly imageRenderApi = inject(ImageRenderApi);
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
+  private previewSubscription: Subscription | undefined;
+  private previewRequestId = 0;
 
   readonly openingDraft: TemplateCreateDraft = INITIAL_TEMPLATE_DRAFT;
   readonly nameControl = new FormControl(this.openingDraft.name, { nonNullable: true });
@@ -39,6 +43,9 @@ export class TemplateCreate {
   protected readonly isSaving = signal(false);
   private readonly saveConfirmed = signal(false);
   protected readonly saveErrorMessage = signal('');
+  protected readonly isPreviewing = signal(false);
+  protected readonly previewErrorMessage = signal('');
+  protected readonly previewUrl = signal<string | null>(null);
   protected readonly nameError = computed(() => {
     const name = this.nameValue().trim();
     if (!name) return 'Enter a template name.';
@@ -67,6 +74,61 @@ export class TemplateCreate {
       !this.isSaving() &&
       !this.saveConfirmed(),
   );
+  protected readonly canPreview = computed(() => {
+    const template = this.templateValue();
+    return (
+      !!template.trim() &&
+      template.length <= 2_048 &&
+      new TextEncoder().encode(JSON.stringify({ template })).length <= 2_048
+    );
+  });
+
+  constructor() {
+    this.templateControl.valueChanges
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => this.clearPreview());
+    this.destroyRef.onDestroy(() => this.clearPreview());
+  }
+
+  protected preview(): void {
+    if (!this.canPreview()) return;
+
+    const template = this.templateControl.value;
+    this.clearPreview();
+    const requestId = this.previewRequestId;
+    this.isPreviewing.set(true);
+    this.previewSubscription = this.imageRenderApi
+      .renderPreview(template)
+      .pipe(
+        takeUntilDestroyed(this.destroyRef),
+        finalize(() => {
+          if (this.previewRequestId === requestId) {
+            this.isPreviewing.set(false);
+            this.previewSubscription = undefined;
+          }
+        }),
+      )
+      .subscribe({
+        next: (blob) => {
+          if (this.previewRequestId !== requestId || this.templateControl.value !== template) return;
+          if (!(blob instanceof Blob) || blob.type !== 'image/png' || blob.size === 0) {
+            this.showPreviewError();
+            return;
+          }
+
+          try {
+            this.previewUrl.set(URL.createObjectURL(blob));
+          } catch {
+            this.showPreviewError();
+          }
+        },
+        error: () => {
+          if (this.previewRequestId === requestId && this.templateControl.value === template) {
+            this.showPreviewError();
+          }
+        },
+      });
+  }
 
   protected save(): void {
     if (!this.canSave()) return;
@@ -104,6 +166,7 @@ export class TemplateCreate {
   protected cancel(): void {
     if (!this.canCancel()) return;
 
+    this.clearPreview();
     this.nameControl.setValue(this.openingDraft.name);
     this.templateControl.setValue(this.openingDraft.template);
     this.nameControl.markAsPristine();
@@ -118,5 +181,20 @@ export class TemplateCreate {
     this.saveErrorMessage.set(
       'Template was saved, but Templates could not be opened. Use the Templates link to check the list.',
     );
+  }
+
+  private showPreviewError(): void {
+    this.previewErrorMessage.set('Could not preview this markup. Check it and try again.');
+  }
+
+  private clearPreview(): void {
+    this.previewRequestId++;
+    this.previewSubscription?.unsubscribe();
+    this.previewSubscription = undefined;
+    this.isPreviewing.set(false);
+    this.previewErrorMessage.set('');
+    const url = this.previewUrl();
+    this.previewUrl.set(null);
+    if (url) URL.revokeObjectURL(url);
   }
 }

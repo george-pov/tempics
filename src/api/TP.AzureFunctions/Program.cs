@@ -24,6 +24,8 @@ builder.Services.AddSingleton<IBundledTemplateSource, BundledTemplateSource>();
 builder.Services.AddSingleton<AvaloniaRenderHost>();
 builder.Services.AddSingleton<IAxamlRenderer, AvaloniaAxamlRenderer>();
 
+builder.Services.AddTransient<RenderPreviewHandler>();
+
 builder.Services.AddTemplateStore(builder.Configuration, builder.Environment);
 builder.Services.AddTransient<CreateTemplateHandler>();
 builder.Services.AddTransient<ListTemplatesHandler>();

@@ -164,16 +164,9 @@ commands that create artifacts.
 
 ## Security Boundaries
 
-Treat AXAML templates, parameter values, and uploaded assets as untrusted input.
-
-- Restrict accepted AXAML controls, markup extensions, resource references,
-  and URI schemes.
-- Prevent templates from accessing the filesystem, network, environment,
-  secrets, or another user's data.
 - Validate upload type, size, dimensions, and ownership.
 - Enforce per-user authorization on every template, asset, and generated-image
   operation.
-- Apply render time, memory, image-dimension, and output-size limits.
 - Keep credentials, tokens, connection strings, and user data out of source
   control, logs, documentation, and generated artifacts.
 

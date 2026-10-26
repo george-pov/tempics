@@ -1,6 +1,9 @@
 using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -10,6 +13,8 @@ using Microsoft.IdentityModel.Protocols;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Microsoft.IdentityModel.Tokens;
 using TP.AzureFunctions.Auth;
+using TP.Application.Rendering;
+using TP.AzureFunctions.Rendering;
 using Xunit;
 
 namespace TP.Api.Tests.Functions;
@@ -118,6 +123,48 @@ public sealed class ApiAuthTests : IDisposable
     }
 
     [Theory]
+    [InlineData("missing", StatusCodes.Status401Unauthorized)]
+    [InlineData("wrong-scope", StatusCodes.Status403Forbidden)]
+    [InlineData("valid", StatusCodes.Status200OK)]
+    public async Task Invoke_PreviewRoute_EnforcesBearerBeforeRendering(
+        string scenario, int expectedStatus)
+    {
+        var http = NewHttpContext(scenario);
+        const string axaml = """
+            <Border xmlns="https://github.com/avaloniaui" Width="1200" Height="630" Background="#FFFFFF">
+              <Grid>
+                <TextBlock Text="Invite" FontSize="64" Foreground="#242424"
+                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+              </Grid>
+            </Border>
+            """;
+        http.Request.Body = new MemoryStream(Encoding.UTF8.GetBytes(
+            JsonSerializer.Serialize(new { template = axaml })));
+        var renderer = new PreviewRendererStub();
+        var function = new RenderPreview(new RenderPreviewHandler(renderer));
+        IActionResult? result = null;
+
+        await new BearerTokenMiddleware().Invoke(new HttpFunctionContext(http), async _ =>
+        {
+            result = await function.RunAsync(http.Request, CancellationToken.None);
+        });
+
+        Assert.Equal(expectedStatus, http.Response.StatusCode);
+        if (scenario == "valid")
+        {
+            Assert.IsType<FileContentResult>(result);
+            Assert.Equal(1, renderer.CallCount);
+        }
+        else
+        {
+            Assert.Null(result);
+            Assert.Equal(0, renderer.CallCount);
+            Assert.Equal(0, http.Response.Body.Length);
+        }
+        Assert.Equal("no-store", http.Response.Headers.CacheControl.ToString());
+    }
+
+    [Theory]
     [InlineData("Instance", "http://issuer.example.test/")]
     [InlineData("TenantId", "common")]
     [InlineData("ClientId", "")]
@@ -221,6 +268,19 @@ public sealed class ApiAuthTests : IDisposable
     {
         _services.Dispose();
         _rsa.Dispose();
+    }
+
+    private sealed class PreviewRendererStub : IAxamlRenderer
+    {
+        public int CallCount { get; private set; }
+
+        public Task<RenderImageResult> RenderAsync(
+            ReadOnlyMemory<byte> axaml, CancellationToken cancellationToken)
+        {
+            CallCount++;
+            return Task.FromResult(new RenderImageResult(
+                [137, 80, 78, 71, 13, 10, 26, 10, 1, 2, 3]));
+        }
     }
 
     private sealed class HttpFunctionContext : FunctionContext

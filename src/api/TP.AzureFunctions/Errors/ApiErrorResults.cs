@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using TP.Application.Rendering;
 using TP.Application.Templates;
 using TP.TableStorage.Templates;
 
@@ -17,6 +18,14 @@ public static class ApiErrorResults
     public static ObjectResult NotFound(HttpRequest request) =>
         Create(request, StatusCodes.Status404NotFound, "Template not found", "template_not_found");
 
+    public static ObjectResult PreviewInvalid(HttpRequest request) =>
+        Create(request, StatusCodes.Status400BadRequest,
+            "Invalid preview request", "preview_invalid");
+
+    public static ObjectResult PreviewTooLarge(HttpRequest request) =>
+        Create(request, StatusCodes.Status413PayloadTooLarge,
+            "Preview request is too large", "preview_too_large");
+
     public static ObjectResult FromException(
         HttpRequest request, Exception exception, string functionName)
     {
@@ -26,6 +35,19 @@ public static class ApiErrorResults
         {
             return Create(request, StatusCodes.Status500InternalServerError,
                 "Image rendering failed", "render_failed");
+        }
+
+        if (functionName == "RenderPreview")
+        {
+            return exception switch
+            {
+                JsonException => PreviewInvalid(request),
+                PreviewInputException input when input.Error == PreviewInputError.TooLarge =>
+                    PreviewTooLarge(request),
+                PreviewInputException => PreviewInvalid(request),
+                _ => Create(request, StatusCodes.Status500InternalServerError,
+                    "Preview rendering failed", "preview_failed")
+            };
         }
 
         if (functionName is "CreateTemplate" or "ListTemplates" or "GetTemplate")

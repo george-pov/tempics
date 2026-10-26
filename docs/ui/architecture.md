@@ -11,7 +11,7 @@ are defined by [package.json](../../src/ui/package.json) and
 | `/` | Sign-in action when signed out; image generator when signed in. |
 | `/image-generator` | Guarded direct route to the generator. |
 | `/templates` | Guarded, lazy list of the signed-in caller's saved template names. Add opens the create page. |
-| `/templates/new` | Guarded, lazy page for editing and saving a new AXAML template. |
+| `/templates/new` | Guarded, lazy page for editing, manually previewing, and saving a new AXAML template. |
 | `/component-lab` | Public shared-component workbench. |
 
 [app.routes.ts](../../src/ui/src/app/app.routes.ts) defines routes. A shared layout
@@ -29,12 +29,20 @@ owns navigation, the main landmark, page spacing, and route focus.
 
 `pages/templates/` owns the list request's loading, loaded, and error states,
 including retry. `pages/template-create/` owns the opening draft, field
-validation, Cancel reset, and create request state. It sends a trimmed name and
-the exact AXAML text through `shared/api/templates/`. A confirmed `201` returns
-to `/templates`, where the list loads again. A failed create keeps the draft and
-warns that the saved row may already exist. The list presents names only; it
-does not fetch saved AXAML or render previews. The create page saves AXAML text
-without rendering it.
+validation, Cancel reset, create request state, and an optional unsaved preview.
+It sends a trimmed name and the exact AXAML text through
+`shared/api/templates/`. A confirmed `201` returns to `/templates`, where the
+list loads again. A failed create keeps the draft and warns that the saved row
+may already exist. The list presents names only; it does not fetch saved AXAML
+or render previews.
+
+Preview is a manual request through `shared/api/image-render/` for the current
+nonblank AXAML. The pane starts empty. A new request or AXAML edit invalidates
+older output; the page accepts only a nonempty `image/png` Blob for the current
+text and revokes its object URL on replacement, edit, Cancel, or destruction.
+An unrenderable draft gets generic retryable feedback. Preview allows at most
+2,048 UTF-16 code units and a 2,048-byte encoded JSON request; Save remains
+independent and permits up to 16,384 UTF-16 code units.
 
 ## Shared Controls
 
@@ -60,8 +68,9 @@ origin/path boundary. Interaction-required renewal redirects; other token
 failures stop the request. Route guards govern presentation, while the API
 authorizes rendering.
 
-The generator requests a PNG through its API client and owns the preview object
-URL, releasing it on replacement or destruction.
+The generator and create page each own their PNG object URL lifetime. The
+create page uses the authenticated preview endpoint without reading or writing
+a saved template.
 
 See [runtime configuration](development/configuration.md),
 [API contract](../api/endpoints.md), and [development standards](development/development-guidelines.md).

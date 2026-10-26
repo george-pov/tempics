@@ -69,6 +69,21 @@ public sealed class ApiExceptionMiddlewareTests
     }
 
     [Fact]
+    public async Task Invoke_RenderPreviewInvalidJson_ReturnsSafeBadRequest()
+    {
+        var http = TemplateFunctionFixture.Http();
+        http.Request.Body = new MemoryStream(Encoding.UTF8.GetBytes("{broken"));
+        var context = new HttpFunctionContext(http, "RenderPreview");
+        var function = new RenderPreview(new RenderPreviewHandler(new UnusedRenderer()));
+
+        await Middleware().Invoke(context, _ =>
+            function.RunAsync(http.Request, CancellationToken.None));
+
+        AssertProblem(context, http, StatusCodes.Status400BadRequest,
+            "Invalid preview request", "preview_invalid");
+    }
+
+    [Fact]
     public void FromException_TemplateErrors_MapToCurrentContract()
     {
         var request = TemplateFunctionFixture.Http().Request;
@@ -80,7 +95,11 @@ public sealed class ApiExceptionMiddlewareTests
             ("ListTemplates", new TemplateUnavailableException(), 503, "template_unavailable"),
             ("ListTemplates", new JsonException(PrivateText), 500, "template_failed"),
             ("FutureFunction", new TemplateUnavailableException(), 500, "api_failed"),
-            ("RenderSample", new TemplateUnavailableException(), 500, "render_failed")
+            ("RenderSample", new TemplateUnavailableException(), 500, "render_failed"),
+            ("RenderPreview", new JsonException(PrivateText), 400, "preview_invalid"),
+            ("RenderPreview", new PreviewInputException(PreviewInputError.Invalid), 400, "preview_invalid"),
+            ("RenderPreview", new PreviewInputException(PreviewInputError.TooLarge), 413, "preview_too_large"),
+            ("RenderPreview", new InvalidOperationException(PrivateText), 500, "preview_failed")
         };
 
         foreach (var item in cases)

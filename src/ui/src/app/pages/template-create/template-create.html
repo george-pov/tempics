@@ -6,42 +6,66 @@
 
 <header class="page-heading app-mb-8">
   <h1>Create template</h1>
-  <p>Edit the name and AXAML markup, then save your template.</p>
+  <p>Edit the name and AXAML markup. Preview the image or save your template.</p>
 </header>
 
-<section class="details" aria-labelledby="details-title">
-  <h2 id="details-title">Template details</h2>
+<div class="app-grid">
+  <section class="details app-col-lg-7" aria-labelledby="details-title">
+    <h2 id="details-title">Template details</h2>
 
-  <form (submit)="save(); $event.preventDefault()" novalidate>
-    <app-input
-      [control]="nameControl"
-      label="Template name"
-      hint="Max 100 characters."
-      [error]="nameError()"
-      [showCharacterCount]="true"
-    />
-    <app-input
-      [control]="templateControl"
-      label="Template markup (AXAML)"
-      hint="Max 16,384 characters."
-      [error]="templateError()"
-      [showCharacterCount]="true"
-      [multiline]="true"
-      [monospace]="true"
-    />
+    <form (submit)="save(); $event.preventDefault()" novalidate>
+      <app-input
+        [control]="nameControl"
+        label="Template name"
+        hint="Max 100 characters."
+        [error]="nameError()"
+        [showCharacterCount]="true"
+      />
+      <app-input
+        [control]="templateControl"
+        label="Template markup (AXAML)"
+        hint="Preview request: max 2 KB. Save: max 16,384 characters."
+        [error]="templateError()"
+        [showCharacterCount]="true"
+        [multiline]="true"
+        [monospace]="true"
+      />
 
-    @if (isSaving()) {
-      <app-progress-bar label="Saving your template..." />
+      @if (isSaving()) {
+        <app-progress-bar label="Saving your template..." />
+      }
+      @if (saveErrorMessage()) {
+        <app-alert variant="error">{{ saveErrorMessage() }}</app-alert>
+      }
+
+      <div class="app-actions app-actions-end app-actions-stack-mobile app-mt-2">
+        <app-button appearance="text" [disabled]="!canCancel()" (click)="cancel()">Cancel</app-button>
+        <app-button appearance="outlined" [disabled]="!canPreview()" (click)="preview()">
+          {{ isPreviewing() ? 'Previewing...' : 'Preview' }}
+        </app-button>
+        <app-button type="submit" [disabled]="!canSave()">
+          {{ isSaving() ? 'Saving...' : 'Save template' }}
+        </app-button>
+      </div>
+    </form>
+  </section>
+
+  <section class="preview-panel app-col-lg-5" aria-labelledby="preview-title">
+    <h2 id="preview-title">Image preview</h2>
+    @if (isPreviewing()) {
+      <app-progress-bar label="Rendering your preview..." />
     }
-    @if (saveErrorMessage()) {
-      <app-alert variant="error">{{ saveErrorMessage() }}</app-alert>
+    @if (previewErrorMessage()) {
+      <app-alert variant="error">{{ previewErrorMessage() }}</app-alert>
     }
-
-    <div class="app-actions app-actions-end app-actions-stack-mobile app-mt-2">
-      <app-button appearance="text" [disabled]="!canCancel()" (click)="cancel()">Cancel</app-button>
-      <app-button type="submit" [disabled]="!canSave()">
-        {{ isSaving() ? 'Saving...' : 'Save template' }}
-      </app-button>
+    <p class="preview-status" role="status">{{ previewUrl() ? 'Preview is ready.' : '' }}</p>
+    <div class="preview-frame">
+      @if (previewUrl(); as url) {
+        <img [src]="url" alt="Rendered preview of the current template markup" width="1200" height="630" />
+      } @else {
+        <p>Use Preview to render the current markup.</p>
+      }
     </div>
-  </form>
-</section>
+    <p class="preview-caption">Image preview, 1200 x 630</p>
+  </section>
+</div>

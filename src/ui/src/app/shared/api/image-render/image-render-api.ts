@@ -13,4 +13,10 @@ export class ImageRenderApi {
       responseType: 'blob',
     });
   }
+
+  renderPreview(template: string): Observable<Blob> {
+    return this.http.post(`${this.config.apiBaseUrl}/renders/preview`, { template }, {
+      responseType: 'blob',
+    });
+  }
 }

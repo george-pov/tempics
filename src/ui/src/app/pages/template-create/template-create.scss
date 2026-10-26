@@ -7,12 +7,51 @@
   @include app.page-title-header;
 }
 
-.details {
+.details,
+.preview-panel {
   @include app.panel($app-space-4, $app-color-surface);
-
-  max-inline-size: 54rem;
 }
 
 form {
   @include app.editor-stack;
+}
+
+.preview-panel {
+  @include app.editor-stack;
+
+  h2,
+  p {
+    margin: 0;
+  }
+}
+
+.preview-frame {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1200 / 630;
+  overflow: hidden;
+  padding: $app-space-2;
+  border: $app-border-default;
+  border-radius: $app-radius-sm;
+  background: $app-color-background;
+
+  img {
+    display: block;
+    max-inline-size: 100%;
+    block-size: auto;
+    border: $app-border-default;
+  }
+
+  p {
+    color: $app-color-muted;
+    text-align: center;
+  }
+}
+
+.preview-status {
+  @include app.visually-hidden;
+}
+
+.preview-caption {
+  color: $app-color-muted;
 }

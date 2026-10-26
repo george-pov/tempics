@@ -55,4 +55,30 @@ describe('ImageRenderApi', () => {
     expect(receive).toHaveBeenCalledWith(png);
     http.verify();
   });
+
+  it('posts the unsaved template to the preview route and returns a PNG blob', () => {
+    const config = { environment: 'dev', apiBaseUrl: 'https://dev.example.test/api' };
+    TestBed.configureTestingModule({
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        { provide: CONFIG, useValue: config },
+      ],
+    });
+    const http = TestBed.inject(HttpTestingController);
+    const receive = vi.fn();
+    const png = new Blob(['preview'], { type: 'image/png' });
+    TestBed.inject(ImageRenderApi).renderPreview('<Border />').subscribe(receive);
+
+    const request = http.expectOne(`${config.apiBaseUrl}/renders/preview`);
+    expect(request.request.method).toBe('POST');
+    expect(request.request.body).toEqual({ template: '<Border />' });
+    expect(request.request.responseType).toBe('blob');
+    expect(request.request.headers.has('x-functions-key')).toBe(false);
+    expect(request.request.headers.has('Authorization')).toBe(false);
+    expect(request.request.withCredentials).toBe(false);
+    request.flush(png);
+    expect(receive).toHaveBeenCalledExactlyOnceWith(png);
+    http.verify();
+  });
 });

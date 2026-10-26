@@ -1,6 +1,6 @@
 namespace TP.Application.Rendering;
 
-// This POC port accepts only the trusted bundled template. It is not an AXAML sandbox.
+// Renders AXAML in the shared API process. It does not isolate caller markup.
 public interface IAxamlRenderer
 {
     Task<RenderImageResult> RenderAsync(
