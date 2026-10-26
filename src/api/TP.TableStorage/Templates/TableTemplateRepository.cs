@@ -99,6 +99,101 @@ public sealed class TableTemplateRepository(TableClient tableClient) : ITemplate
         }
     }
 
+    public async Task<bool> UpdateAsync(ImageTemplate template, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(template);
+        if (template.UserId == Guid.Empty || template.Id == Guid.Empty)
+        {
+            throw new ArgumentException("Template keys must be nonempty GUIDs.", nameof(template));
+        }
+
+        var partition = template.UserId.ToString("D");
+        var row = template.Id.ToString("D");
+        if (await ReadOwnedEntityAsync(partition, row, cancellationToken) is null)
+        {
+            return false;
+        }
+
+        try
+        {
+            await _tableClient.UpdateEntityAsync(
+                TemplateEntity.FromTemplate(template), ETag.All, TableUpdateMode.Replace,
+                cancellationToken);
+            return true;
+        }
+        catch (RequestFailedException exception) when (
+            exception.Status == 404 && exception.ErrorCode == "EntityNotFound")
+        {
+            return false;
+        }
+        catch (Exception exception) when (
+            exception is RequestFailedException or AuthenticationFailedException or HttpRequestException)
+        {
+            throw new TemplateUnavailableException();
+        }
+    }
+
+    public async Task<bool> DeleteAsync(Guid userId, Guid id, CancellationToken cancellationToken)
+    {
+        if (userId == Guid.Empty || id == Guid.Empty)
+        {
+            throw new ArgumentException("Template keys must be nonempty GUIDs.");
+        }
+
+        var partition = userId.ToString("D");
+        var row = id.ToString("D");
+        if (await ReadOwnedEntityAsync(partition, row, cancellationToken) is null)
+        {
+            return false;
+        }
+
+        try
+        {
+            await _tableClient.DeleteEntityAsync(
+                partition, row, cancellationToken: cancellationToken);
+            return true;
+        }
+        catch (RequestFailedException exception) when (
+            exception.Status == 404 && exception.ErrorCode == "EntityNotFound")
+        {
+            return true;
+        }
+        catch (Exception exception) when (
+            exception is RequestFailedException or AuthenticationFailedException or HttpRequestException)
+        {
+            throw new TemplateUnavailableException();
+        }
+    }
+
+    private async Task<TemplateEntity?> ReadOwnedEntityAsync(
+        string partition, string row, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var response = await _tableClient.GetEntityAsync<TemplateEntity>(
+                partition, row, select: [nameof(TemplateEntity.UserId)],
+                cancellationToken: cancellationToken);
+            var entity = response.Value;
+            if (entity.PartitionKey != partition || entity.RowKey != row ||
+                entity.UserId != partition)
+            {
+                throw new TemplateUnavailableException();
+            }
+
+            return entity;
+        }
+        catch (RequestFailedException exception) when (
+            exception.Status == 404 && exception.ErrorCode == "EntityNotFound")
+        {
+            return null;
+        }
+        catch (Exception exception) when (
+            exception is RequestFailedException or AuthenticationFailedException or HttpRequestException)
+        {
+            throw new TemplateUnavailableException();
+        }
+    }
+
     private static Guid ReadId(TemplateEntity entity, string partition)
     {
         if (entity.UserId != partition ||

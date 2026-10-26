@@ -43,23 +43,27 @@ never sent to the sample renderer.
 | `POST /api/templates` | JSON `{ "name": "...", "template": "..." }` | `201 Created`, `{ "id": "guid", "name": "trimmed name" }`, and `Location: /api/templates/{id}`. |
 | `GET /api/templates` | No query parameters. | `200 OK`, `{ "items": [{ "id": "guid", "name": "..." }] }` with every template owned by the caller. |
 | `GET /api/templates/{id}` | Template GUID in the path. | `200 OK`, `{ "id": "guid", "name": "...", "template": "exact saved text" }`. |
+| `PUT /api/templates/{id}` | Existing template GUID and full JSON `{ "name": "...", "template": "..." }`. | Bodyless `204 No Content`; the ID and owner stay the same. |
+| `DELETE /api/templates/{id}` | Existing template GUID and no body. | Bodyless `204 No Content`; the row is permanently removed. |
 
 Names are trimmed, must be nonempty, and can contain at most 100 UTF-16 code
 units. Template text must contain a non-whitespace character and can contain at
 most 16,384 UTF-16 code units; its content is preserved exactly. Duplicate
-names are allowed. The server generates each ID and inserts a new row rather
-than overwriting one.
+names are allowed. POST generates each ID and inserts a new row. PUT replaces
+both fields of an existing owner row; it never creates a row. DELETE removes
+only an existing owner row. Deleted templates have no recovery endpoint.
 
 The list contains IDs and names, never template text. The adapter reads all
 provider pages before returning one response. The expected scale is about 1,000
 templates per user; response size grows with the user's template count. A list
 is not a snapshot of concurrent inserts.
 
-Malformed JSON, unknown create fields, invalid names, and invalid GUIDs return
-`400`. Template text above 16,384 UTF-16 code units or a JSON request body above
-128 KiB returns `413`.
-Detail returns the same `404` for an absent ID and another user's ID. Storage
-unavailability or provider failures return `503`; other failures return `500`.
+Malformed JSON, unknown POST or PUT fields, invalid names or GUIDs, and a
+nonempty DELETE body return `400`. Template text above 16,384 UTF-16 code units
+or a POST or PUT JSON body above 128 KiB returns `413`. Detail, update, and
+delete return the same `404` for an absent ID and another user's ID. Repeating
+DELETE after removal returns `404`. Storage unavailability or provider failures
+return `503`; other failures return `500`.
 These are problem responses with a safe code and correlation ID. They contain no
 stored text, user IDs, provider details, or credentials. Every template response
 uses `Cache-Control: no-store`; authentication failures retain the `401` and `403`
@@ -68,3 +72,9 @@ behavior described [above](#responses).
 Shared API exception middleware maps thrown template input and storage failures
 to these problem responses. The routes return explicit validation and 404
 results.
+
+PUT has no revision or conditional request header. Concurrent successful
+updates use last-write-wins behavior. Callers coordinate edits and retries;
+retrying a PUT may overwrite a newer change. If DELETE removes the row before
+an update writes, that update returns `404`. Detail GET keeps the same JSON
+and headers.

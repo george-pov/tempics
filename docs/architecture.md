@@ -12,7 +12,8 @@ Browser configuration -> Entra sign-in -> API access token -> sample request
 
 Authenticated template requests -> application handlers -> Azure Tables adapter
 -> the caller's partition in the dedicated `Templates` table. Listing reads only
-IDs and names; detail reads saved text. Saved AXAML never reaches the renderer.
+IDs and names; detail reads saved text; update replaces an existing owner row;
+delete permanently removes one. Saved AXAML never reaches the renderer.
 
 The Angular UI owns navigation and presentation. The .NET isolated Azure
 Functions API owns authentication, authorization, orchestration, and HTTP

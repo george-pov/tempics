@@ -12,4 +12,8 @@ public interface ITemplateRepository
         Guid userId,
         Guid id,
         CancellationToken cancellationToken);
+
+    Task<bool> UpdateAsync(ImageTemplate template, CancellationToken cancellationToken);
+
+    Task<bool> DeleteAsync(Guid userId, Guid id, CancellationToken cancellationToken);
 }

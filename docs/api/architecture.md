@@ -42,13 +42,18 @@ adapter uses that GUID as `PartitionKey` and a server-generated template GUID as
 `RowKey`. Reads always include the caller's partition, and a mismatched stored
 `UserId` fails closed. Creates insert a row; lists project metadata only and
 aggregate provider pages into one HTTP response; detail returns raw saved text
-only to its owner. See the [template endpoints](endpoints.md#saved-templates).
+only to its owner. Update and delete verify the existing owner row before
+replacing or permanently removing it. PUT never creates a row. Successful
+competing updates use last-write-wins behavior, with edit and retry coordination
+left to the caller. See the [template endpoints](endpoints.md#saved-templates).
 
 Saved AXAML is untrusted data. The save path does not parse or render it, and
-the bundled renderer cannot load it. Local development uses Azurite and can
-create the `Templates` table at startup. Hosted storage uses the Function managed
-identity and the separate application-data account described in
-[infrastructure](../operations/infrastructure.md).
+the bundled renderer cannot load it. Storage registration selects either a
+connection string or an HTTPS table service URI with `DefaultAzureCredential`.
+An explicit startup setting can create the `Templates` table; the documented
+local Azurite setup enables it. Hosted Bicep provisions the table and uses the
+Function managed identity with the separate application-data account described
+in [infrastructure](../operations/infrastructure.md).
 
 Keep HTTP/configuration at the host, orchestration and ports in the application,
 and framework types inside adapters. Requirements beyond this trusted sample
