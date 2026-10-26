@@ -1,6 +1,10 @@
-<a class="back-link" routerLink="/templates">Templates</a>
+<div class="app-mb-4">
+  <app-button-link route="/templates" appearance="text">
+    <span aria-hidden="true">&larr;&nbsp;</span>Templates
+  </app-button-link>
+</div>
 
-<header class="page-heading">
+<header class="page-heading app-mb-8">
   <h1>Create template</h1>
   <p>Edit the name and AXAML markup, then save your template.</p>
 </header>
@@ -9,24 +13,22 @@
   <h2 id="details-title">Template details</h2>
 
   <form (submit)="save(); $event.preventDefault()" novalidate>
-    <div class="fields">
-      <app-input
-        [control]="nameControl"
-        label="Template name"
-        hint="Use up to 100 characters."
-        [error]="nameError()"
-        [showCharacterCount]="true"
-      />
-      <app-input
-        [control]="templateControl"
-        label="Template markup (AXAML)"
-        hint="Enter AXAML markup. Maximum 16,384 characters."
-        [error]="templateError()"
-        [showCharacterCount]="true"
-        [multiline]="true"
-        [monospace]="true"
-      />
-    </div>
+    <app-input
+      [control]="nameControl"
+      label="Template name"
+      hint="Max 100 characters."
+      [error]="nameError()"
+      [showCharacterCount]="true"
+    />
+    <app-input
+      [control]="templateControl"
+      label="Template markup (AXAML)"
+      hint="Max 16,384 characters."
+      [error]="templateError()"
+      [showCharacterCount]="true"
+      [multiline]="true"
+      [monospace]="true"
+    />
 
     @if (isSaving()) {
       <app-progress-bar label="Saving your template..." />
@@ -35,7 +37,7 @@
       <app-alert variant="error">{{ saveErrorMessage() }}</app-alert>
     }
 
-    <div class="actions app-actions app-actions-end app-actions-stack-mobile">
+    <div class="app-actions app-actions-end app-actions-stack-mobile app-mt-2">
       <app-button appearance="text" [disabled]="!canCancel()" (click)="cancel()">Cancel</app-button>
       <app-button type="submit" [disabled]="!canSave()">
         {{ isSaving() ? 'Saving...' : 'Save template' }}

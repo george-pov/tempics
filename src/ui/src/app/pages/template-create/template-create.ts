@@ -1,18 +1,19 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormControl } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { Router } from '@angular/router';
 import { finalize, startWith } from 'rxjs';
 import { TemplateApi } from '../../shared/api/templates/template-api';
 import { Alert } from '../../shared/components/alert/alert';
 import { Button } from '../../shared/components/button/button';
+import { ButtonLink } from '../../shared/components/button-link/button-link';
 import { Input } from '../../shared/components/input/input';
 import { ProgressBar } from '../../shared/components/progress-bar/progress-bar';
 import { INITIAL_TEMPLATE_DRAFT, type TemplateCreateDraft } from './template-create-draft';
 
 @Component({
   selector: 'app-template-create',
-  imports: [RouterLink, Alert, Button, Input, ProgressBar],
+  imports: [Alert, Button, ButtonLink, Input, ProgressBar],
   templateUrl: './template-create.html',
   styleUrl: './template-create.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -41,13 +42,13 @@ export class TemplateCreate {
   protected readonly nameError = computed(() => {
     const name = this.nameValue().trim();
     if (!name) return 'Enter a template name.';
-    if (name.length > 100) return 'Use 100 characters or fewer.';
+    if (name.length > 100) return 'Max 100 characters.';
     return '';
   });
   protected readonly templateError = computed(() => {
     const template = this.templateValue();
     if (!template.trim()) return 'Enter template markup.';
-    if (template.length > 16_384) return 'Use 16,384 characters or fewer.';
+    if (template.length > 16_384) return 'Max 16,384 characters.';
     return '';
   });
   protected readonly hasChanges = computed(

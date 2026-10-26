@@ -3,70 +3,16 @@
 
 @include app.page-host;
 
-.back-link {
-  display: inline-flex;
-  align-items: center;
-  min-block-size: 2.75rem;
-  margin-block-end: $app-space-4;
-  color: $app-color-action-primary;
-  font-weight: 500;
-  text-decoration: none;
-
-  &::before {
-    content: '\2039';
-    margin-inline-end: $app-space-2;
-    font-size: 1.5rem;
-    line-height: 1;
-  }
-
-  &:hover {
-    text-decoration: underline;
-  }
-
-  &:focus-visible {
-    outline: 3px solid $app-color-action-primary;
-    outline-offset: 3px;
-  }
-}
-
 .page-heading {
   @include app.page-title-header;
-
-  margin-block-end: $app-space-8;
 }
 
 .details {
-  @include app.panel(0, $app-color-surface);
+  @include app.panel($app-space-4, $app-color-surface);
 
   max-inline-size: 54rem;
-  overflow: hidden;
-
-  h2 {
-    margin: 0;
-    padding: $app-space-6;
-    border-bottom: $app-border-default;
-  }
 }
 
 form {
   @include app.editor-stack;
-
-  padding: $app-space-6;
-}
-
-.fields {
-  @include app.editor-stack;
-
-  min-inline-size: 0;
-}
-
-.actions {
-  margin-block-start: $app-space-2;
-}
-
-@media (max-width: #{$app-breakpoint-sm - 1px}) {
-  .details h2,
-  form {
-    padding: $app-space-4;
-  }
 }

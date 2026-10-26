@@ -88,7 +88,7 @@ describe('TemplateCreate', () => {
 
     await edit(nameField(), ` ${'x'.repeat(101)} `);
     expect(button(/save template/i).disabled).toBe(true);
-    expect(fixture.nativeElement.textContent).toContain('Use 100 characters or fewer.');
+    expect(fixture.nativeElement.textContent).toContain('Max 100 characters.');
     await edit(nameField(), ` ${'x'.repeat(100)} `);
     expect(button(/save template/i).disabled).toBe(false);
 
@@ -100,7 +100,7 @@ describe('TemplateCreate', () => {
 
     await edit(templateField(), 'x'.repeat(16_385));
     expect(button(/save template/i).disabled).toBe(true);
-    expect(fixture.nativeElement.textContent).toContain('Use 16,384 characters or fewer.');
+    expect(fixture.nativeElement.textContent).toContain('Max 16,384 characters.');
     await edit(templateField(), 'x'.repeat(16_384));
     expect(button(/save template/i).disabled).toBe(false);
   });
