@@ -212,10 +212,81 @@ describe('Templates route', () => {
       fixture.destroy();
     }
   });
+
+  it('opens the guarded create page from Add and reloads the list after a confirmed create', async () => {
+    const config = CONFIG_FIXTURE;
+    TestBed.configureTestingModule({
+      imports: [App],
+      providers: [...createAppConfig(config).providers, provideHttpClientTesting()],
+    });
+    await TestBed.inject(AuthSession).signIn();
+    const fixture = TestBed.createComponent(App);
+    try {
+      await fixture.whenStable();
+      const router = TestBed.inject(Router);
+      await router.navigateByUrl('/templates');
+      await fixture.whenStable();
+      const root: HTMLElement = fixture.nativeElement;
+      const main = root.querySelector('main')!;
+      const http = TestBed.inject(HttpTestingController);
+      http.expectOne(`${config.apiBaseUrl}/templates`).flush({ items: [] });
+      await fixture.whenStable();
+
+      const addLink = main.querySelector<HTMLAnchorElement>('a[href="/templates/new"]');
+      expect(addLink?.textContent).toContain('Add Template');
+      addLink!.click();
+      await fixture.whenStable();
+      expect(router.url).toBe('/templates/new');
+      expect(document.title).toBe('Create Template | Tempics');
+      expect(main.querySelector('app-template-create')).not.toBeNull();
+      expect(document.activeElement).toBe(main);
+      const templatesNav = root.querySelector<HTMLAnchorElement>(
+        'nav[aria-label="Primary navigation"] a[href="/templates"]',
+      );
+      expect(templatesNav?.getAttribute('aria-current')).toBe('page');
+      http.expectNone(() => true);
+
+      const name = main.querySelector<HTMLInputElement>('app-template-create app-input input')!;
+      const template = main.querySelector<HTMLTextAreaElement>('app-template-create app-input textarea')!;
+      expect(name.value).toBe('Event invitation');
+      expect(template.value).toContain('You are invited');
+      name.value = '  Launch invitation  ';
+      name.dispatchEvent(new Event('input', { bubbles: true }));
+      await fixture.whenStable();
+      const save = Array.from(main.querySelectorAll<HTMLButtonElement>('button')).find(
+        (button) => button.textContent?.trim() === 'Save template',
+      );
+      expect(save?.disabled).toBe(false);
+      save!.click();
+      await fixture.whenStable();
+      const create = http.expectOne(`${config.apiBaseUrl}/templates`);
+      expect(create.request.method).toBe('POST');
+      expect(create.request.headers.get('Authorization')).toBe('Bearer fixture-access-token');
+      expect(create.request.body).toEqual({ name: 'Launch invitation', template: template.value });
+      create.flush(
+        { id: '33333333-3333-3333-3333-333333333333', name: 'Launch invitation' },
+        { status: 201, statusText: 'Created' },
+      );
+      await fixture.whenStable();
+      expect(router.url).toBe('/templates');
+      const list = http.expectOne(`${config.apiBaseUrl}/templates`);
+      expect(list.request.method).toBe('GET');
+      expect(list.request.headers.get('Authorization')).toBe('Bearer fixture-access-token');
+      list.flush({
+        items: [{ id: '33333333-3333-3333-3333-333333333333', name: 'Launch invitation' }],
+      });
+      await fixture.whenStable();
+      expect(main.querySelector('app-templates')?.textContent).toContain('Launch invitation');
+      expect(templatesNav?.getAttribute('aria-current')).toBe('page');
+      http.verify();
+    } finally {
+      fixture.destroy();
+    }
+  });
 });
 
 describe('Home route', () => {
-  it.each(['/', '/image-generator', '/templates'])(
+  it.each(['/', '/image-generator', '/templates', '/templates/new'])(
     'starts a fresh app at the sign-in page when opening %s',
     async (url) => {
       TestBed.configureTestingModule({
@@ -228,6 +299,7 @@ describe('Home route', () => {
       );
       expect(harness.routeNativeElement?.querySelector('app-image-generator')).toBeNull();
       expect(harness.routeNativeElement?.querySelector('app-templates')).toBeNull();
+      expect(harness.routeNativeElement?.querySelector('app-template-create')).toBeNull();
       expect(harness.routeNativeElement?.querySelector('nav')).toBeNull();
       expect(document.title).toBe('Home | Tempics');
       TestBed.inject(HttpTestingController).expectNone(() => true);

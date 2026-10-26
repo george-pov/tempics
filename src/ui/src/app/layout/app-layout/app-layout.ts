@@ -15,18 +15,27 @@ export class AppLayout {
   private readonly content = viewChild.required<ElementRef<HTMLElement>>('content');
   private hasPage = false;
 
-  protected readonly navItems = [
-    { label: 'Image Generator', link: '/image-generator' },
-    { label: 'Templates', link: '/templates' },
-    { label: 'Component Lab', link: '/component-lab' },
-  ];
-
   protected readonly activeMatch: IsActiveMatchOptions = {
     paths: 'exact',
     queryParams: 'ignored',
     matrixParams: 'ignored',
     fragment: 'ignored',
   };
+
+  protected readonly templatesActiveMatch: IsActiveMatchOptions = {
+    ...this.activeMatch,
+    paths: 'subset',
+  };
+
+  protected readonly navItems: ReadonlyArray<{
+    readonly label: string;
+    readonly link: string;
+    readonly activeMatch?: IsActiveMatchOptions;
+  }> = [
+    { label: 'Image Generator', link: '/image-generator' },
+    { label: 'Templates', link: '/templates', activeMatch: this.templatesActiveMatch },
+    { label: 'Component Lab', link: '/component-lab' },
+  ];
 
   protected skipToContent(event: Event): void {
     event.preventDefault();

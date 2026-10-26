@@ -1,0 +1,45 @@
+<a class="back-link" routerLink="/templates">Templates</a>
+
+<header class="page-heading">
+  <h1>Create template</h1>
+  <p>Edit the name and AXAML markup, then save your template.</p>
+</header>
+
+<section class="details" aria-labelledby="details-title">
+  <h2 id="details-title">Template details</h2>
+
+  <form (submit)="save(); $event.preventDefault()" novalidate>
+    <div class="fields">
+      <app-input
+        [control]="nameControl"
+        label="Template name"
+        hint="Use up to 100 characters."
+        [error]="nameError()"
+        [showCharacterCount]="true"
+      />
+      <app-input
+        [control]="templateControl"
+        label="Template markup (AXAML)"
+        hint="Enter AXAML markup. Maximum 16,384 characters."
+        [error]="templateError()"
+        [showCharacterCount]="true"
+        [multiline]="true"
+        [monospace]="true"
+      />
+    </div>
+
+    @if (isSaving()) {
+      <app-progress-bar label="Saving your template..." />
+    }
+    @if (saveErrorMessage()) {
+      <app-alert variant="error">{{ saveErrorMessage() }}</app-alert>
+    }
+
+    <div class="actions app-actions app-actions-end app-actions-stack-mobile">
+      <app-button appearance="text" [disabled]="!canCancel()" (click)="cancel()">Cancel</app-button>
+      <app-button type="submit" [disabled]="!canSave()">
+        {{ isSaving() ? 'Saving...' : 'Save template' }}
+      </app-button>
+    </div>
+  </form>
+</section>

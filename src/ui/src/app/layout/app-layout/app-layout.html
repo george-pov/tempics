@@ -14,7 +14,7 @@
               class="nav-link"
               [routerLink]="item.link"
               routerLinkActive="is-active"
-              [routerLinkActiveOptions]="activeMatch"
+              [routerLinkActiveOptions]="item.activeMatch ?? activeMatch"
               ariaCurrentWhenActive="page"
               >{{ item.label }}</a
             >

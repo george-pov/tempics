@@ -10,7 +10,8 @@ are defined by [package.json](../../src/ui/package.json) and
 | --- | --- |
 | `/` | Sign-in action when signed out; image generator when signed in. |
 | `/image-generator` | Guarded direct route to the generator. |
-| `/templates` | Guarded, lazy list of the signed-in caller's saved template names. The Add action is unavailable until a create route exists. |
+| `/templates` | Guarded, lazy list of the signed-in caller's saved template names. Add opens the create page. |
+| `/templates/new` | Guarded, lazy page for editing and saving a new AXAML template. |
 | `/component-lab` | Public shared-component workbench. |
 
 [app.routes.ts](../../src/ui/src/app/app.routes.ts) defines routes. A shared layout
@@ -27,8 +28,13 @@ owns navigation, the main landmark, page spacing, and route focus.
 - `shared/components/`: reusable controls.
 
 `pages/templates/` owns the list request's loading, loaded, and error states,
-including retry. `shared/api/templates/` owns the typed list transport client.
-The list presents names only; it does not fetch saved AXAML or render previews.
+including retry. `pages/template-create/` owns the opening draft, field
+validation, Cancel reset, and create request state. It sends a trimmed name and
+the exact AXAML text through `shared/api/templates/`. A confirmed `201` returns
+to `/templates`, where the list loads again. A failed create keeps the draft and
+warns that the saved row may already exist. The list presents names only; it
+does not fetch saved AXAML or render previews. The create page saves AXAML text
+without rendering it.
 
 ## Shared Controls
 

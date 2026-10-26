@@ -4,6 +4,7 @@ import { TemplateApi } from '../../shared/api/templates/template-api';
 import { type TemplateListItemResponse } from '../../shared/api/templates/template-list-response';
 import { Alert } from '../../shared/components/alert/alert';
 import { Button } from '../../shared/components/button/button';
+import { ButtonLink } from '../../shared/components/button-link/button-link';
 import { Icon } from '../../shared/components/icon/icon';
 import { ProgressBar } from '../../shared/components/progress-bar/progress-bar';
 
@@ -14,7 +15,7 @@ type TemplatesState =
 
 @Component({
   selector: 'app-templates',
-  imports: [Alert, Button, Icon, ProgressBar],
+  imports: [Alert, Button, ButtonLink, Icon, ProgressBar],
   templateUrl: './templates.html',
   styleUrl: './templates.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

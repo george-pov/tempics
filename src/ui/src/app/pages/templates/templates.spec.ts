@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 import { Subject } from 'rxjs';
 import { TemplateApi } from '../../shared/api/templates/template-api';
 import { type TemplateListResponse } from '../../shared/api/templates/template-list-response';
@@ -17,7 +18,7 @@ describe('Templates', () => {
       return response.asObservable();
     });
     TestBed.configureTestingModule({
-      providers: [{ provide: TemplateApi, useValue: { listTemplates } }],
+      providers: [provideRouter([]), { provide: TemplateApi, useValue: { listTemplates } }],
     });
     fixture = TestBed.createComponent(Templates);
     fixture.detectChanges();
@@ -52,10 +53,11 @@ describe('Templates', () => {
     );
     expect(page().textContent).not.toContain('no saved templates');
     expect(page().querySelector('.count')).toBeNull();
-    expect(button('Add Template')?.disabled).toBe(true);
-    expect(page().textContent).toContain('Adding templates is not available yet.');
-    expect(page().querySelectorAll('a')).toHaveLength(0);
-    expect(buttons()).toHaveLength(1);
+    const add = page().querySelector<HTMLAnchorElement>('app-button-link a');
+    expect(add?.getAttribute('href')).toBe('/templates/new');
+    expect(add?.textContent).toContain('Add Template');
+    expect(add?.querySelector('app-icon[aria-hidden="true"]')).not.toBeNull();
+    expect(buttons()).toHaveLength(0);
   });
 
   it('shows every returned name in order as text, including duplicates, with the loaded count', () => {
@@ -77,7 +79,7 @@ describe('Templates', () => {
     expect(page().querySelectorAll('li app-icon[name="image"][aria-hidden="true"]')).toHaveLength(3);
     expect(page().querySelector('img')).toBeNull();
     expect(page().querySelector('li a, li button')).toBeNull();
-    expect(buttons()).toHaveLength(1);
+    expect(buttons()).toHaveLength(0);
   });
 
   it('shows a useful empty state only after a successful empty response', () => {

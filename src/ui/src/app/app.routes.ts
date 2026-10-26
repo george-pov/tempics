@@ -27,6 +27,13 @@ export const routes: Routes = [
           import('./pages/image-generator/image-generator').then((m) => m.ImageGenerator),
       },
       {
+        path: 'templates/new',
+        title: 'Create Template | Tempics',
+        canActivate: [signedInGuard],
+        loadComponent: () =>
+          import('./pages/template-create/template-create').then((m) => m.TemplateCreate),
+      },
+      {
         path: 'templates',
         title: 'Templates | Tempics',
         canActivate: [signedInGuard],
