@@ -123,5 +123,14 @@ public sealed class FindTemplateHandlerTests
             Token = cancellationToken;
             return Task.FromResult(find(userId, id));
         }
+
+        public Task<bool> UpdateAsync(
+            ImageTemplate template,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task<bool> DeleteAsync(
+            Guid userId,
+            Guid id,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
     }
 }

@@ -13,8 +13,9 @@ and explicit resource ownership. Current boundaries are in
 - Keep I/O async; do not block tasks with `.Result`, `.Wait()`, or
   `.GetAwaiter().GetResult()`. Pass cancellation through the call chain.
 - Use `TimeProvider` for time-dependent behavior.
-- Keep endpoints thin and transport types at the host. Bind focused options and
-  validate them at startup; avoid scattered environment-variable reads.
+- Keep endpoints thin and transport types at the host. Bind focused options;
+  validate application-owned configuration rules at startup when needed, and
+  avoid scattered environment-variable reads.
 - Give each handler one use case. Separate state-changing operations from queries.
 - Define application-owned ports; keep SDK/framework types and lifetimes in adapters.
 - Bound retries to operations safe to repeat. Provision resources outside request

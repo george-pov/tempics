@@ -16,6 +16,7 @@ The backend solution is `src/api/Tempics.slnx`. Start with
 - [Naming conventions](development/naming-conventions.md)
 - [Testing guidance](development/testing.md)
 - [Build and test commands](development/build-and-test.md)
+- [Code complexity analysis](development/complexity-analysis.md)
 
 ## Related Guides
 

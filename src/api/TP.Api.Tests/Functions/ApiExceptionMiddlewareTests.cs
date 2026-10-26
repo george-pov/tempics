@@ -37,6 +37,54 @@ public sealed class ApiExceptionMiddlewareTests
     }
 
     [Fact]
+    public async Task Invoke_UpdateTemplateInvalidJson_ReturnsSafeBadRequest()
+    {
+        var http = TemplateFunctionFixture.Http();
+        http.Request.Body = new MemoryStream(Encoding.UTF8.GetBytes("{broken"));
+        var context = new HttpFunctionContext(http, "UpdateTemplate");
+        var function = new UpdateTemplate(new UpdateTemplateHandler(new TemplateRepositoryStub()));
+
+        await Middleware().Invoke(context, _ =>
+            function.RunAsync(http.Request, Guid.NewGuid().ToString("D"), CancellationToken.None));
+
+        AssertProblem(context, http, StatusCodes.Status400BadRequest,
+            "Invalid template request", "template_invalid");
+    }
+
+    [Theory]
+    [InlineData("UpdateTemplate", true)]
+    [InlineData("UpdateTemplate", false)]
+    [InlineData("DeleteTemplate", true)]
+    [InlineData("DeleteTemplate", false)]
+    public async Task Invoke_TemplateMutationFailure_ReturnsSafeProblem(string functionName, bool unavailable)
+    {
+        Exception failure = unavailable
+            ? new TemplateUnavailableException()
+            : new InvalidOperationException(PrivateText);
+        var repository = new TemplateRepositoryStub
+        {
+            OnUpdate = (_, _) => Task.FromException<bool>(failure),
+            OnDelete = (_, _, _) => Task.FromException<bool>(failure)
+        };
+        var http = TemplateFunctionFixture.Http();
+        http.Request.Body = new MemoryStream(Encoding.UTF8.GetBytes(
+            functionName == "UpdateTemplate" ? "{\"name\":\"X\",\"template\":\"private AXAML\"}" : ""));
+        var context = new HttpFunctionContext(http, functionName);
+        var id = Guid.NewGuid().ToString("D");
+
+        await Middleware().Invoke(context, _ => functionName == "UpdateTemplate"
+            ? new UpdateTemplate(new UpdateTemplateHandler(repository))
+                .RunAsync(http.Request, id, CancellationToken.None)
+            : new DeleteTemplate(new DeleteTemplateHandler(repository))
+                .RunAsync(http.Request, id, CancellationToken.None));
+
+        AssertProblem(context, http,
+            unavailable ? StatusCodes.Status503ServiceUnavailable : StatusCodes.Status500InternalServerError,
+            unavailable ? "Template storage is unavailable" : "Template operation failed",
+            unavailable ? "template_unavailable" : "template_failed");
+    }
+
+    [Fact]
     public async Task Invoke_ListTemplatesProviderFailure_ReturnsSafeServerProblem()
     {
         var repository = new TemplateRepositoryStub
@@ -91,8 +139,11 @@ public sealed class ApiExceptionMiddlewareTests
         {
             ("CreateTemplate", new TemplateInputException(TemplateInputError.TemplateTooLarge), 413, "template_too_large"),
             ("CreateTemplate", new TemplateInputException(TemplateInputError.EmptyName), 400, "template_invalid"),
+            ("UpdateTemplate", new JsonException(PrivateText), 400, "template_invalid"),
+            ("UpdateTemplate", new TemplateInputException(TemplateInputError.TemplateTooLarge), 413, "template_too_large"),
             ("GetTemplate", new UnauthorizedAccessException(PrivateText), 401, "unauthorized"),
             ("ListTemplates", new TemplateUnavailableException(), 503, "template_unavailable"),
+            ("DeleteTemplate", new TemplateUnavailableException(), 503, "template_unavailable"),
             ("ListTemplates", new JsonException(PrivateText), 500, "template_failed"),
             ("FutureFunction", new TemplateUnavailableException(), 500, "api_failed"),
             ("RenderSample", new TemplateUnavailableException(), 500, "render_failed"),

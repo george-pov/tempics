@@ -23,15 +23,22 @@ App settings:
 | `Auth__TenantId` | External tenant GUID. |
 | `Auth__ClientId` | API client ID GUID, not the SPA or deployment identity. |
 | `Auth__Issuer` | Exact issuer from v2 OpenID discovery. |
-| `TemplateStore__TableServiceUri` | Hosted table service URI of the dedicated template account; Azure requires HTTPS. |
-| `TemplateStore__ConnectionString` | Local Azurite shortcut: `UseDevelopmentStorage=true`. Use this instead of the table service URI for local template storage. |
-| `TemplateStore__CreateResourcesIfMissing` | Set to `true` with local Azurite storage to create the `Templates` table at API startup. |
+| `TemplateStore__TableServiceUri` | Absolute HTTPS table service URI for identity-based storage access. |
+| `TemplateStore__ConnectionString` | Alternative connection-string mode; use `UseDevelopmentStorage=true` for local Azurite. |
+| `TemplateStore__CreateResourcesIfMissing` | Optional startup creation of the `Templates` table; defaults to `false`. Use `true` only for deliberate local bootstrap. |
 
-Auth settings are validated at startup. Hosted startup requires the table
-service URI and uses managed identity. The connection string and resource
-creation switch are for local Azurite only. Without local template storage
-configuration, the sample route can start but template requests return a safe
-unavailable response.
+Auth settings are validated at startup. The template client uses a nonblank
+connection string when present; otherwise it uses the table service URI with
+`DefaultAzureCredential`. Supply one usable storage setting per environment.
+If both are set, the connection string takes precedence. Template storage has
+no custom configuration validation; administrators own these settings, and
+malformed values surface through configuration binding, URI parsing, or the
+storage SDK.
+
+`AzureWebJobsStorage` is for the Functions host, not template data. The startup
+creation switch applies to either mode; hosted infrastructure provisions the
+table through Bicep and leaves the switch `false`. Hosted Bicep supplies the
+URI and managed identity, with Shared Key disabled.
 
 Read the issuer from discovery; its host can differ from
 the UI authority. The v2 audience is the API client ID; the SPA requests the

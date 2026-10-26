@@ -14,32 +14,13 @@ public sealed class CreateTemplateHandler(ITemplateRepository repository)
             throw new TemplateInputException(TemplateInputError.InvalidUserId);
         }
 
-        var name = command.Name?.Trim();
-        if (string.IsNullOrWhiteSpace(name))
-        {
-            throw new TemplateInputException(TemplateInputError.EmptyName);
-        }
-
-        if (name.Length > 100)
-        {
-            throw new TemplateInputException(TemplateInputError.NameTooLong);
-        }
-
-        if (command.Template?.Length > 16_384)
-        {
-            throw new TemplateInputException(TemplateInputError.TemplateTooLarge);
-        }
-
-        if (string.IsNullOrWhiteSpace(command.Template))
-        {
-            throw new TemplateInputException(TemplateInputError.EmptyTemplate);
-        }
+        var fields = TemplateFields.Parse(command.Name, command.Template);
 
         var template = new ImageTemplate(
             command.UserId,
             Guid.NewGuid(),
-            name,
-            command.Template);
+            fields.Name,
+            fields.Template);
 
         await repository.CreateAsync(template, cancellationToken);
         return new CreateTemplateResult(template.Id, template.Name);

@@ -16,7 +16,9 @@ Use the intended Azure login/subscription and completed [Entra setup](entra-setu
 
 These definitions support dev only. They own the Function app-settings collection,
 including auth settings and `TemplateStore__TableServiceUri` from the dedicated
-account's Table endpoint. Shared Key is disabled. Publication, manual CORS,
+account's Table endpoint. Shared Key is disabled. Bicep provisions the
+`Templates` table and leaves `TemplateStore__CreateResourcesIfMissing` unset
+(default `false`); keep that switch off when hosted. Publication, manual CORS,
 GitHub access, operator grants, and undeclared alerts are separate. Recreating
 infrastructure does not restore application packages, UI files, template rows,
 or those manual settings. Decide template retention, backup, and recovery before

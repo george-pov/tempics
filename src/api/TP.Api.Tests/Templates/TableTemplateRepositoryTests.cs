@@ -174,19 +174,23 @@ public sealed class TableTemplateRepositoryTests
         Assert.Equal(OtherUserId.ToString("D"), table.ReadPartition);
     }
 
-    [Fact]
-    public async Task FindAsync_CorruptOwner_FailsClosed()
+    [Theory]
+    [InlineData("partition")]
+    [InlineData("row")]
+    [InlineData("owner")]
+    public async Task FindAsync_CorruptStoredKeysOrOwner_FailsClosed(string corruptField)
     {
-        var table = new TableClientStub { ApplyReadKeys = false };
         var id = Guid.NewGuid();
-        table.Rows.Add(new TemplateEntity
+        var entity = Entity(UserId, id, "Private", "private-content");
+        switch (corruptField)
         {
-            PartitionKey = UserId.ToString("D"),
-            RowKey = id.ToString("D"),
-            UserId = OtherUserId.ToString("D"),
-            Name = "Private",
-            Template = "private-content"
-        });
+            case "partition": entity.PartitionKey = OtherUserId.ToString("D"); break;
+            case "row": entity.RowKey = Guid.NewGuid().ToString("D"); break;
+            case "owner": entity.UserId = OtherUserId.ToString("D"); break;
+        }
+
+        var table = new TableClientStub { ApplyReadKeys = false };
+        table.Rows.Add(entity);
 
         await Assert.ThrowsAsync<TemplateUnavailableException>(() =>
             new TableTemplateRepository(table).FindAsync(UserId, id, CancellationToken.None));
@@ -231,6 +235,281 @@ public sealed class TableTemplateRepositoryTests
         Assert.DoesNotContain(privateMessage, failure.ToString());
     }
 
+    [Fact]
+    public async Task UpdateAsync_ExistingOwner_ReplacesOnlyThatRow()
+    {
+        var id = Guid.NewGuid();
+        var table = new TableClientStub();
+        table.Rows.Add(Entity(UserId, id, "Before", "before"));
+        table.Rows.Add(Entity(OtherUserId, id, "Other", "other-private"));
+        var repository = new TableTemplateRepository(table);
+        var replacement = new ImageTemplate(UserId, id, "After", " <TextBlock />\r\n");
+        using var cancellation = new CancellationTokenSource();
+
+        var updated = await repository.UpdateAsync(replacement, cancellation.Token);
+
+        Assert.True(updated);
+        Assert.Equal(UserId.ToString("D"), table.ReadPartition);
+        Assert.Equal(id.ToString("D"), table.ReadRow);
+        Assert.Equal(nameof(TemplateEntity.UserId),
+            Assert.Single(Assert.IsType<string[]>(table.ReadSelect)));
+        Assert.Equal(cancellation.Token, table.ReadToken);
+        Assert.Equal(1, table.UpdateCalls);
+        Assert.Equal(ETag.All, table.UpdateIfMatch);
+        Assert.Equal(TableUpdateMode.Replace, table.UpdateMode);
+        Assert.Equal(cancellation.Token, table.UpdateToken);
+        Assert.Equal(TemplateEntity.FromTemplate(replacement).PartitionKey,
+            table.UpdatedEntity?.PartitionKey);
+        Assert.Equal(replacement.Template, table.UpdatedEntity?.Template);
+        Assert.Equal(replacement, await repository.FindAsync(UserId, id, CancellationToken.None));
+        Assert.Equal(new ImageTemplate(OtherUserId, id, "Other", "other-private"),
+            await repository.FindAsync(OtherUserId, id, CancellationToken.None));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task UpdateAsync_MissingOrForeignRow_DoesNotWrite(bool foreignRow)
+    {
+        var id = Guid.NewGuid();
+        var table = new TableClientStub();
+        if (foreignRow)
+        {
+            table.Rows.Add(Entity(OtherUserId, id, "Other", "private"));
+        }
+
+        var updated = await new TableTemplateRepository(table).UpdateAsync(
+            new ImageTemplate(UserId, id, "After", "after"), CancellationToken.None);
+
+        Assert.False(updated);
+        Assert.Equal(UserId.ToString("D"), table.ReadPartition);
+        Assert.Equal(0, table.UpdateCalls);
+        Assert.Equal(foreignRow ? 1 : 0, table.Rows.Count);
+    }
+
+    [Theory]
+    [InlineData("partition")]
+    [InlineData("row")]
+    [InlineData("owner")]
+    public async Task UpdateAsync_CorruptStoredKeysOrOwner_FailsClosed(string corruptField)
+    {
+        var id = Guid.NewGuid();
+        var entity = Entity(UserId, id, "Before", "private");
+        switch (corruptField)
+        {
+            case "partition": entity.PartitionKey = OtherUserId.ToString("D"); break;
+            case "row": entity.RowKey = Guid.NewGuid().ToString("D"); break;
+            case "owner": entity.UserId = OtherUserId.ToString("D"); break;
+        }
+
+        var table = new TableClientStub { ApplyReadKeys = false };
+        table.Rows.Add(entity);
+
+        await Assert.ThrowsAsync<TemplateUnavailableException>(() =>
+            new TableTemplateRepository(table).UpdateAsync(
+                new ImageTemplate(UserId, id, "After", "after"), CancellationToken.None));
+        Assert.Equal(0, table.UpdateCalls);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_EntityRemovedAfterRead_ReturnsMissingWithoutUpsert()
+    {
+        var id = Guid.NewGuid();
+        var table = new TableClientStub
+        {
+            UpdateFailure = new RequestFailedException(404, "Gone", "EntityNotFound", null)
+        };
+        table.Rows.Add(Entity(UserId, id, "Before", "before"));
+
+        var updated = await new TableTemplateRepository(table).UpdateAsync(
+            new ImageTemplate(UserId, id, "After", "after"), CancellationToken.None);
+
+        Assert.False(updated);
+        Assert.Equal(1, table.UpdateCalls);
+        Assert.Single(table.Rows);
+    }
+
+    [Theory]
+    [InlineData(404, "TableNotFound")]
+    [InlineData(412, "UpdateConditionNotSatisfied")]
+    public async Task UpdateAsync_ProviderFailure_ThrowsSafeUnavailableError(int status, string code)
+    {
+        const string privateMessage = "secret-uri private-template";
+        var id = Guid.NewGuid();
+        var table = new TableClientStub
+        {
+            UpdateFailure = new RequestFailedException(status, privateMessage, code, null)
+        };
+        table.Rows.Add(Entity(UserId, id, "Before", "before"));
+
+        var failure = await Assert.ThrowsAsync<TemplateUnavailableException>(() =>
+            new TableTemplateRepository(table).UpdateAsync(
+                new ImageTemplate(UserId, id, "After", "after"), CancellationToken.None));
+
+        Assert.DoesNotContain(privateMessage, failure.ToString());
+    }
+
+    [Fact]
+    public async Task UpdateAsync_CanceledWrite_PropagatesCancellation()
+    {
+        using var cancellation = new CancellationTokenSource();
+        var id = Guid.NewGuid();
+        var table = new TableClientStub
+        {
+            UpdateFailure = new OperationCanceledException(cancellation.Token)
+        };
+        table.Rows.Add(Entity(UserId, id, "Before", "before"));
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            new TableTemplateRepository(table).UpdateAsync(
+                new ImageTemplate(UserId, id, "After", "after"), cancellation.Token));
+        Assert.Equal(cancellation.Token, table.UpdateToken);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task MutationAsync_MissingTableOnOwnerRead_FailsBeforeWrite(bool update)
+    {
+        var table = new TableClientStub
+        {
+            ReadFailure = new RequestFailedException(404, "private provider payload", "TableNotFound", null)
+        };
+        var repository = new TableTemplateRepository(table);
+        var id = Guid.NewGuid();
+
+        if (update)
+        {
+            await Assert.ThrowsAsync<TemplateUnavailableException>(() =>
+                repository.UpdateAsync(
+                    new ImageTemplate(UserId, id, "After", "after"), CancellationToken.None));
+        }
+        else
+        {
+            await Assert.ThrowsAsync<TemplateUnavailableException>(() =>
+                repository.DeleteAsync(UserId, id, CancellationToken.None));
+        }
+
+        Assert.Equal(0, table.UpdateCalls);
+        Assert.Equal(0, table.DeleteCalls);
+    }
+
+    [Fact]
+    public async Task DeleteAsync_ExistingOwner_RemovesOnlyThatRow()
+    {
+        var id = Guid.NewGuid();
+        var table = new TableClientStub();
+        table.Rows.Add(Entity(UserId, id, "Mine", "mine"));
+        table.Rows.Add(Entity(OtherUserId, id, "Other", "other-private"));
+        var repository = new TableTemplateRepository(table);
+        using var cancellation = new CancellationTokenSource();
+
+        var deleted = await repository.DeleteAsync(UserId, id, cancellation.Token);
+
+        Assert.True(deleted);
+        Assert.Equal(UserId.ToString("D"), table.ReadPartition);
+        Assert.Equal(id.ToString("D"), table.ReadRow);
+        Assert.Equal(nameof(TemplateEntity.UserId),
+            Assert.Single(Assert.IsType<string[]>(table.ReadSelect)));
+        Assert.Equal(1, table.DeleteCalls);
+        Assert.Equal(UserId.ToString("D"), table.DeletePartition);
+        Assert.Equal(id.ToString("D"), table.DeleteRow);
+        Assert.Equal(default(ETag), table.DeleteIfMatch);
+        Assert.Equal(cancellation.Token, table.DeleteToken);
+        Assert.Null(await repository.FindAsync(UserId, id, CancellationToken.None));
+        Assert.NotNull(await repository.FindAsync(OtherUserId, id, CancellationToken.None));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task DeleteAsync_MissingOrForeignRow_DoesNotWrite(bool foreignRow)
+    {
+        var id = Guid.NewGuid();
+        var table = new TableClientStub();
+        if (foreignRow)
+        {
+            table.Rows.Add(Entity(OtherUserId, id, "Other", "private"));
+        }
+
+        var deleted = await new TableTemplateRepository(table).DeleteAsync(
+            UserId, id, CancellationToken.None);
+
+        Assert.False(deleted);
+        Assert.Equal(0, table.DeleteCalls);
+    }
+
+    [Theory]
+    [InlineData("partition")]
+    [InlineData("row")]
+    [InlineData("owner")]
+    public async Task DeleteAsync_CorruptStoredKeysOrOwner_FailsClosed(string corruptField)
+    {
+        var id = Guid.NewGuid();
+        var entity = Entity(UserId, id, "Mine", "private");
+        switch (corruptField)
+        {
+            case "partition": entity.PartitionKey = OtherUserId.ToString("D"); break;
+            case "row": entity.RowKey = Guid.NewGuid().ToString("D"); break;
+            case "owner": entity.UserId = OtherUserId.ToString("D"); break;
+        }
+
+        var table = new TableClientStub { ApplyReadKeys = false };
+        table.Rows.Add(entity);
+
+        await Assert.ThrowsAsync<TemplateUnavailableException>(() =>
+            new TableTemplateRepository(table).DeleteAsync(UserId, id, CancellationToken.None));
+        Assert.Equal(0, table.DeleteCalls);
+    }
+
+    [Fact]
+    public async Task DeleteAsync_EntityRemovedAfterRead_ReturnsSuccess()
+    {
+        var id = Guid.NewGuid();
+        var table = new TableClientStub
+        {
+            DeleteFailure = new RequestFailedException(404, "Gone", "EntityNotFound", null)
+        };
+        table.Rows.Add(Entity(UserId, id, "Mine", "mine"));
+
+        Assert.True(await new TableTemplateRepository(table).DeleteAsync(
+            UserId, id, CancellationToken.None));
+        Assert.Equal(1, table.DeleteCalls);
+    }
+
+    [Fact]
+    public async Task DeleteAsync_MissingTable_ThrowsSafeUnavailableError()
+    {
+        const string privateMessage = "secret-uri private-template";
+        var id = Guid.NewGuid();
+        var table = new TableClientStub
+        {
+            DeleteFailure = new RequestFailedException(404, privateMessage, "TableNotFound", null)
+        };
+        table.Rows.Add(Entity(UserId, id, "Mine", "mine"));
+
+        var failure = await Assert.ThrowsAsync<TemplateUnavailableException>(() =>
+            new TableTemplateRepository(table).DeleteAsync(UserId, id, CancellationToken.None));
+
+        Assert.DoesNotContain(privateMessage, failure.ToString());
+    }
+
+    [Fact]
+    public async Task DeleteAsync_CanceledWrite_PropagatesCancellation()
+    {
+        using var cancellation = new CancellationTokenSource();
+        var id = Guid.NewGuid();
+        var table = new TableClientStub
+        {
+            DeleteFailure = new OperationCanceledException(cancellation.Token)
+        };
+        table.Rows.Add(Entity(UserId, id, "Mine", "mine"));
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            new TableTemplateRepository(table).DeleteAsync(UserId, id, cancellation.Token));
+        Assert.Equal(cancellation.Token, table.DeleteToken);
+    }
+
     private static TemplateEntity Entity(Guid userId, Guid id, string name, string template) =>
         TemplateEntity.FromTemplate(new ImageTemplate(userId, id, name, template));
 
@@ -272,7 +551,33 @@ public sealed class TableTemplateRepositoryTests
 
         public CancellationToken ReadToken { get; private set; }
 
+        public string[]? ReadSelect { get; private set; }
+
         public Exception? ReadFailure { get; init; }
+
+        public TemplateEntity? UpdatedEntity { get; private set; }
+
+        public int UpdateCalls { get; private set; }
+
+        public ETag UpdateIfMatch { get; private set; }
+
+        public TableUpdateMode UpdateMode { get; private set; }
+
+        public CancellationToken UpdateToken { get; private set; }
+
+        public Exception? UpdateFailure { get; init; }
+
+        public string? DeletePartition { get; private set; }
+
+        public string? DeleteRow { get; private set; }
+
+        public int DeleteCalls { get; private set; }
+
+        public ETag DeleteIfMatch { get; private set; }
+
+        public CancellationToken DeleteToken { get; private set; }
+
+        public Exception? DeleteFailure { get; init; }
 
         public override Task<Response> AddEntityAsync<T>(T entity, CancellationToken cancellationToken = default)
         {
@@ -290,7 +595,8 @@ public sealed class TableTemplateRepositoryTests
             IEnumerable<string>? select = null,
             CancellationToken cancellationToken = default)
         {
-            QueryFilter = entity => filter.Compile()((T)(ITableEntity)entity);
+            var predicate = filter.Compile();
+            QueryFilter = entity => predicate((T)(ITableEntity)entity);
             QueryOdata = TableClient.CreateQueryFilter(filter);
             QueryMaxPerPage = maxPerPage;
             QuerySelect = select?.ToArray();
@@ -305,22 +611,23 @@ public sealed class TableTemplateRepositoryTests
                 .ToArray();
             var chunks = items.Chunk(maxPerPage ?? 1000).ToArray();
             QueryPageCount = chunks.Length;
-            return AsyncPageable<T>.FromPages(Pages());
+            return AsyncPageable<T>.FromPages(EnumeratePages(chunks));
+        }
 
-            IEnumerable<Page<T>> Pages()
+        private IEnumerable<Page<T>> EnumeratePages<T>(T[][] chunks)
+            where T : class, ITableEntity
+        {
+            for (var index = 0; index < chunks.Length; index++)
             {
-                for (var index = 0; index < chunks.Length; index++)
+                if (index == 1 && QueryFailureAfterFirstPage is not null)
                 {
-                    if (index == 1 && QueryFailureAfterFirstPage is not null)
-                    {
-                        throw QueryFailureAfterFirstPage;
-                    }
-
-                    yield return Page<T>.FromValues(
-                        chunks[index],
-                        index < chunks.Length - 1 ? $"page-{index + 1}" : null,
-                        null!);
+                    throw QueryFailureAfterFirstPage;
                 }
+
+                yield return Page<T>.FromValues(
+                    chunks[index],
+                    index < chunks.Length - 1 ? $"page-{index + 1}" : null,
+                    null!);
             }
         }
 
@@ -333,6 +640,7 @@ public sealed class TableTemplateRepositoryTests
             ReadPartition = partitionKey;
             ReadRow = rowKey;
             ReadToken = cancellationToken;
+            ReadSelect = select?.ToArray();
             if (ReadFailure is not null)
             {
                 return Task.FromException<Response<T>>(ReadFailure);
@@ -344,6 +652,59 @@ public sealed class TableTemplateRepositoryTests
                 ? Task.FromException<Response<T>>(
                     new RequestFailedException(404, "Missing", "EntityNotFound", null))
                 : Task.FromResult(Response.FromValue((T)(ITableEntity)entity, null!));
+        }
+
+        public override Task<Response> UpdateEntityAsync<T>(
+            T entity, ETag ifMatch, TableUpdateMode mode = TableUpdateMode.Merge,
+            CancellationToken cancellationToken = default)
+        {
+            UpdatedEntity = (TemplateEntity)(ITableEntity)entity;
+            UpdateCalls++;
+            UpdateIfMatch = ifMatch;
+            UpdateMode = mode;
+            UpdateToken = cancellationToken;
+            if (UpdateFailure is not null)
+            {
+                return Task.FromException<Response>(UpdateFailure);
+            }
+
+            var index = Rows.FindIndex(row =>
+                row.PartitionKey == UpdatedEntity.PartitionKey &&
+                row.RowKey == UpdatedEntity.RowKey);
+            if (index < 0)
+            {
+                return Task.FromException<Response>(
+                    new RequestFailedException(404, "Missing", "EntityNotFound", null));
+            }
+
+            Rows[index] = UpdatedEntity;
+            return Task.FromResult<Response>(null!);
+        }
+
+        public override Task<Response> DeleteEntityAsync(
+            string partitionKey, string rowKey, ETag ifMatch = default,
+            CancellationToken cancellationToken = default)
+        {
+            DeletePartition = partitionKey;
+            DeleteRow = rowKey;
+            DeleteCalls++;
+            DeleteIfMatch = ifMatch;
+            DeleteToken = cancellationToken;
+            if (DeleteFailure is not null)
+            {
+                return Task.FromException<Response>(DeleteFailure);
+            }
+
+            var index = Rows.FindIndex(row =>
+                row.PartitionKey == partitionKey && row.RowKey == rowKey);
+            if (index < 0)
+            {
+                return Task.FromException<Response>(
+                    new RequestFailedException(404, "Missing", "EntityNotFound", null));
+            }
+
+            Rows.RemoveAt(index);
+            return Task.FromResult<Response>(null!);
         }
     }
 }

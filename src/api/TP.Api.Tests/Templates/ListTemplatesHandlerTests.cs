@@ -118,5 +118,14 @@ public sealed class ListTemplatesHandlerTests
             Guid userId,
             Guid id,
             CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task<bool> UpdateAsync(
+            ImageTemplate template,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task<bool> DeleteAsync(
+            Guid userId,
+            Guid id,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
     }
 }
