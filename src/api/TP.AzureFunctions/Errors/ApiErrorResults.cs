@@ -28,11 +28,12 @@ public static class ApiErrorResults
                 "Image rendering failed", "render_failed");
         }
 
-        if (functionName is "CreateTemplate" or "ListTemplates" or "GetTemplate")
+        if (functionName is "CreateTemplate" or "ListTemplates" or "GetTemplate" or
+            "UpdateTemplate" or "DeleteTemplate")
         {
             return exception switch
             {
-                JsonException when functionName == "CreateTemplate" => BadRequest(request),
+                JsonException when functionName is "CreateTemplate" or "UpdateTemplate" => BadRequest(request),
                 TemplateInputException input when input.Error == TemplateInputError.TemplateTooLarge =>
                     TooLarge(request),
                 TemplateInputException => BadRequest(request),

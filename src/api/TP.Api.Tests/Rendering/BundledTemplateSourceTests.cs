@@ -6,14 +6,16 @@ namespace TP.Api.Tests.Rendering;
 
 public sealed class BundledTemplateSourceTests(RenderFixture fixture)
 {
+    private const string SampleResourceName = "TP.Avalonia.Templates.Sample.axaml";
+    private const string BackgroundUri = "avares://TP.Avalonia/Templates/Background.png";
+
     [Fact]
-    public async Task LoadAsync_EmbeddedSample_ReturnsTrustedAxaml()
+    public async Task LoadAsync_EmbeddedSample_MatchesResourceBytes()
     {
-        const string resourceName = "TP.Avalonia.Templates.Sample.axaml";
         var assembly = typeof(BundledTemplateSource).Assembly;
-        Assert.Equal(resourceName, BundledTemplateSource.ResourceName);
-        Assert.Contains(resourceName, assembly.GetManifestResourceNames());
-        using var resource = assembly.GetManifestResourceStream(resourceName);
+        Assert.Equal(SampleResourceName, BundledTemplateSource.ResourceName);
+        Assert.Contains(SampleResourceName, assembly.GetManifestResourceNames());
+        using var resource = assembly.GetManifestResourceStream(SampleResourceName);
         Assert.NotNull(resource);
         using var embedded = new MemoryStream();
         await resource.CopyToAsync(embedded, TestContext.Current.CancellationToken);
@@ -22,39 +24,51 @@ public sealed class BundledTemplateSourceTests(RenderFixture fixture)
 
         Assert.False(axaml.IsEmpty);
         Assert.Equal(embedded.ToArray(), axaml.ToArray());
-        using var stream = new MemoryStream(axaml.ToArray(), writable: false);
-        var root = Assert.IsType<XElement>(XDocument.Load(stream).Root);
+    }
+
+    [Fact]
+    public async Task LoadAsync_EmbeddedSample_UsesBundledBackground()
+    {
+        var root = await LoadRootAsync();
         Assert.Equal("https://github.com/avaloniaui", root.Name.NamespaceName);
         Assert.Equal(1200d, (double?)root.Attribute("Width"));
         Assert.Equal(630d, (double?)root.Attribute("Height"));
 
-        const string backgroundUri = "avares://TP.Avalonia/Templates/Background.png";
         var background = Assert.Single(root.Descendants(root.Name.Namespace + "ImageBrush"));
-        Assert.Equal(backgroundUri, (string?)background.Attribute("Source"));
+        Assert.Equal(BackgroundUri, (string?)background.Attribute("Source"));
         var backgroundExists = await fixture.Host.DispatchAsync(
-            () => global::Avalonia.Platform.AssetLoader.Exists(new Uri(backgroundUri)),
+            () => global::Avalonia.Platform.AssetLoader.Exists(new Uri(BackgroundUri)),
             TestContext.Current.CancellationToken)
             .WaitAsync(RenderFixture.Timeout, TestContext.Current.CancellationToken);
         Assert.True(backgroundExists);
+    }
+
+    [Fact]
+    public async Task LoadAsync_EmbeddedSample_ExcludesExternalReferences()
+    {
+        var root = await LoadRootAsync();
+        var background = Assert.Single(root.Descendants(root.Name.Namespace + "ImageBrush"));
 
         string[] blocked = ["http:", "https:", "file:", "avares:", "resm:", "{Binding", "{StaticResource", "{DynamicResource"];
-        foreach (var element in root.DescendantsAndSelf())
-        {
-            Assert.DoesNotContain("Binding", element.Name.LocalName, StringComparison.OrdinalIgnoreCase);
-            foreach (var attribute in element.Attributes().Where(attribute => !attribute.IsNamespaceDeclaration))
-            {
-                Assert.NotEqual("Class", attribute.Name.LocalName);
-                if (element == background && attribute.Name.LocalName == "Source")
-                {
-                    // Only this fixed, assembly-bundled image URI is trusted.
-                    continue;
-                }
+        Assert.All(root.DescendantsAndSelf(), element =>
+            Assert.DoesNotContain("Binding", element.Name.LocalName, StringComparison.OrdinalIgnoreCase));
 
-                foreach (var value in blocked)
-                {
-                    Assert.DoesNotContain(value, attribute.Value, StringComparison.OrdinalIgnoreCase);
-                }
+        var attributes = root.DescendantsAndSelf()
+            .SelectMany(element => element.Attributes()
+                .Where(attribute => !attribute.IsNamespaceDeclaration)
+                .Select(attribute => (element, attribute)));
+        foreach (var (element, attribute) in attributes)
+        {
+            Assert.NotEqual("Class", attribute.Name.LocalName);
+            if (element == background && attribute.Name.LocalName == "Source")
+            {
+                // Only this fixed, assembly-bundled image URI is trusted.
+                Assert.Equal(BackgroundUri, attribute.Value);
+                continue;
             }
+
+            Assert.All(blocked, value =>
+                Assert.DoesNotContain(value, attribute.Value, StringComparison.OrdinalIgnoreCase));
         }
     }
 
@@ -68,5 +82,12 @@ public sealed class BundledTemplateSourceTests(RenderFixture fixture)
             fixture.Source.LoadAsync(cancellation.Token).AsTask());
 
         Assert.Equal(cancellation.Token, failure.CancellationToken);
+    }
+
+    private async Task<XElement> LoadRootAsync()
+    {
+        var axaml = await fixture.Source.LoadAsync(TestContext.Current.CancellationToken);
+        using var stream = new MemoryStream(axaml.ToArray(), writable: false);
+        return Assert.IsType<XElement>(XDocument.Load(stream).Root);
     }
 }

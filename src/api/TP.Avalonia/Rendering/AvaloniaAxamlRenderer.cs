@@ -39,6 +39,13 @@ public sealed class AvaloniaAxamlRenderer(AvaloniaRenderHost renderHost) : IAxam
     private static RenderImageResult Render(ReadOnlyMemory<byte> axaml)
     {
         using var input = new MemoryStream(axaml.ToArray(), writable: false);
+        var control = LoadRootControl(input);
+        EnsureBundledFont();
+        return CapturePng(control);
+    }
+
+    private static Control LoadRootControl(Stream input)
+    {
         var loaded = AvaloniaRuntimeXamlLoader.Load(
             input, localAssembly: typeof(AvaloniaAxamlRenderer).Assembly);
 
@@ -49,12 +56,20 @@ public sealed class AvaloniaAxamlRenderer(AvaloniaRenderHost renderHost) : IAxam
             throw new RenderImageException();
         }
 
+        return control;
+    }
+
+    private static void EnsureBundledFont()
+    {
         if (!FontManager.Current.TryGetGlyphTypeface(
                 new Typeface(new FontFamily("fonts:Inter#Inter")), out _))
         {
             throw new RenderImageException();
         }
+    }
 
+    private static RenderImageResult CapturePng(Control control)
+    {
         var window = new Window
         {
             Width = ImageWidth,

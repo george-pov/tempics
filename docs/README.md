@@ -31,6 +31,7 @@ supported procedures, or applicable engineering standards except
 - [Naming conventions](api/development/naming-conventions.md)
 - [Testing guidance](api/development/testing.md)
 - [Build and test commands](api/development/build-and-test.md)
+- [Code complexity analysis](api/development/complexity-analysis.md)
 
 ## UI
 

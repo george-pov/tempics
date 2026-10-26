@@ -24,10 +24,12 @@ builder.Services.AddSingleton<IBundledTemplateSource, BundledTemplateSource>();
 builder.Services.AddSingleton<AvaloniaRenderHost>();
 builder.Services.AddSingleton<IAxamlRenderer, AvaloniaAxamlRenderer>();
 
-builder.Services.AddTemplateStore(builder.Configuration, builder.Environment);
+builder.Services.AddTemplateStore(builder.Configuration);
 builder.Services.AddTransient<CreateTemplateHandler>();
 builder.Services.AddTransient<ListTemplatesHandler>();
 builder.Services.AddTransient<FindTemplateHandler>();
+builder.Services.AddTransient<UpdateTemplateHandler>();
+builder.Services.AddTransient<DeleteTemplateHandler>();
 
 if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("APPLICATIONINSIGHTS_CONNECTION_STRING")))
 {

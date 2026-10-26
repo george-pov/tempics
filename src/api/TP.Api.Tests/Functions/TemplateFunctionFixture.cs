@@ -28,6 +28,12 @@ internal sealed class TemplateRepositoryStub : ITemplateRepository
     public Func<Guid, Guid, CancellationToken, Task<ImageTemplate?>> OnFind { get; set; } =
         (_, _, _) => Task.FromResult<ImageTemplate?>(null);
 
+    public Func<ImageTemplate, CancellationToken, Task<bool>> OnUpdate { get; set; } =
+        (_, _) => Task.FromResult(false);
+
+    public Func<Guid, Guid, CancellationToken, Task<bool>> OnDelete { get; set; } =
+        (_, _, _) => Task.FromResult(false);
+
     public Task CreateAsync(ImageTemplate template, CancellationToken cancellationToken) =>
         OnCreate(template, cancellationToken);
 
@@ -37,4 +43,10 @@ internal sealed class TemplateRepositoryStub : ITemplateRepository
 
     public Task<ImageTemplate?> FindAsync(Guid userId, Guid id, CancellationToken cancellationToken) =>
         OnFind(userId, id, cancellationToken);
+
+    public Task<bool> UpdateAsync(ImageTemplate template, CancellationToken cancellationToken) =>
+        OnUpdate(template, cancellationToken);
+
+    public Task<bool> DeleteAsync(Guid userId, Guid id, CancellationToken cancellationToken) =>
+        OnDelete(userId, id, cancellationToken);
 }

@@ -28,7 +28,9 @@ Create `src/api/TP.AzureFunctions/local.settings.json` only if absent:
 Replace all four auth fixtures with your API settings; see
 [authentication](api/authentication.md#configuration). Preserve existing settings.
 The template settings connect to the local Azurite Table service and create the
-`Templates` table when the API starts. They do not configure hosted storage.
+`Templates` table when the API starts. Supply the connection string for this
+local setup; when both storage settings are present, the connection string takes
+precedence. Hosted Bicep supplies the URI and provisions the table separately.
 
 From `src/ui/`, create the UI configuration only if absent:
 
@@ -90,7 +92,7 @@ There is no API proxy.
 ## If It Fails
 
 - Startup error: check JSON and its response content type.
-- API startup: check auth settings and Azurite.
+- API startup: check auth settings, the template storage setting, and Azurite.
 - Sign-in: check registration, redirect, user-flow link, and account access.
 - Browser request: check the API port and CORS.
 - 401/403/500: see [API responses](api/endpoints.md#responses).
