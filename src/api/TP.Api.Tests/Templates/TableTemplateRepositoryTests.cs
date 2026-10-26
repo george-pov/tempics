@@ -174,19 +174,23 @@ public sealed class TableTemplateRepositoryTests
         Assert.Equal(OtherUserId.ToString("D"), table.ReadPartition);
     }
 
-    [Fact]
-    public async Task FindAsync_CorruptOwner_FailsClosed()
+    [Theory]
+    [InlineData("partition")]
+    [InlineData("row")]
+    [InlineData("owner")]
+    public async Task FindAsync_CorruptStoredKeysOrOwner_FailsClosed(string corruptField)
     {
-        var table = new TableClientStub { ApplyReadKeys = false };
         var id = Guid.NewGuid();
-        table.Rows.Add(new TemplateEntity
+        var entity = Entity(UserId, id, "Private", "private-content");
+        switch (corruptField)
         {
-            PartitionKey = UserId.ToString("D"),
-            RowKey = id.ToString("D"),
-            UserId = OtherUserId.ToString("D"),
-            Name = "Private",
-            Template = "private-content"
-        });
+            case "partition": entity.PartitionKey = OtherUserId.ToString("D"); break;
+            case "row": entity.RowKey = Guid.NewGuid().ToString("D"); break;
+            case "owner": entity.UserId = OtherUserId.ToString("D"); break;
+        }
+
+        var table = new TableClientStub { ApplyReadKeys = false };
+        table.Rows.Add(entity);
 
         await Assert.ThrowsAsync<TemplateUnavailableException>(() =>
             new TableTemplateRepository(table).FindAsync(UserId, id, CancellationToken.None));

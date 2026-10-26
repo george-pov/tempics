@@ -77,15 +77,7 @@ public sealed class TableTemplateRepository(TableClient tableClient) : ITemplate
         {
             var response = await _tableClient.GetEntityAsync<TemplateEntity>(
                 partition, row, cancellationToken: cancellationToken);
-            var entity = response.Value;
-            if (entity.PartitionKey != partition || entity.RowKey != row ||
-                entity.UserId != partition || string.IsNullOrWhiteSpace(entity.Name) ||
-                string.IsNullOrEmpty(entity.Template))
-            {
-                throw new TemplateUnavailableException();
-            }
-
-            return new ImageTemplate(userId, id, entity.Name, entity.Template);
+            return MapTemplate(response.Value, userId, id);
         }
         catch (RequestFailedException exception) when (
             exception.Status == 404 && exception.ErrorCode == "EntityNotFound")
@@ -174,11 +166,7 @@ public sealed class TableTemplateRepository(TableClient tableClient) : ITemplate
                 partition, row, select: [nameof(TemplateEntity.UserId)],
                 cancellationToken: cancellationToken);
             var entity = response.Value;
-            if (entity.PartitionKey != partition || entity.RowKey != row ||
-                entity.UserId != partition)
-            {
-                throw new TemplateUnavailableException();
-            }
+            ValidateOwnedEntity(entity, partition, row);
 
             return entity;
         }
@@ -192,6 +180,27 @@ public sealed class TableTemplateRepository(TableClient tableClient) : ITemplate
         {
             throw new TemplateUnavailableException();
         }
+    }
+
+    private static void ValidateOwnedEntity(TemplateEntity entity, string partition, string row)
+    {
+        if (entity.PartitionKey != partition || entity.RowKey != row ||
+            entity.UserId != partition)
+        {
+            throw new TemplateUnavailableException();
+        }
+    }
+
+    private static ImageTemplate MapTemplate(TemplateEntity entity, Guid userId, Guid id)
+    {
+        ValidateOwnedEntity(entity, userId.ToString("D"), id.ToString("D"));
+        if (string.IsNullOrWhiteSpace(entity.Name) ||
+            string.IsNullOrEmpty(entity.Template))
+        {
+            throw new TemplateUnavailableException();
+        }
+
+        return new ImageTemplate(userId, id, entity.Name, entity.Template);
     }
 
     private static Guid ReadId(TemplateEntity entity, string partition)
