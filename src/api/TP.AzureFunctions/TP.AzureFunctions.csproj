@@ -9,6 +9,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Content Include="local.settings.json" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="../TP.Application/TP.Application.csproj" />
     <ProjectReference Include="../TP.Avalonia/TP.Avalonia.csproj" />
     <ProjectReference Include="../TP.TableStorage/TP.TableStorage.csproj" />

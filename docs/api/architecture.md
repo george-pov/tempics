@@ -47,15 +47,7 @@ competing updates use last-write-wins behavior, with edit and retry coordination
 left to the caller. See the [template endpoints](endpoints.md#saved-templates).
 
 Saved AXAML is untrusted data. The save path does not parse or render it, and
-the bundled renderer cannot load it. Local development uses Azurite and can
-create the `Templates` table at startup. Hosted storage uses the Function managed
-identity and the separate application-data account described in
-[infrastructure](../operations/infrastructure.md).
-neither render route reads a saved row. Local development uses Azurite and can
-create the `Templates` table at startup. Hosted storage uses the Function managed
-identity and the separate application-data account described in
-[infrastructure](../operations/infrastructure.md).
-the bundled renderer cannot load it. Storage registration selects either a
+neither render route reads a saved row. Storage registration selects either a
 connection string or an HTTPS table service URI with `DefaultAzureCredential`.
 An explicit startup setting can create the `Templates` table; the documented
 local Azurite setup enables it. Hosted Bicep provisions the table and uses the
