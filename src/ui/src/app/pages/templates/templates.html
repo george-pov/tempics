@@ -1,0 +1,52 @@
+<div class="page-heading">
+  <header class="page-title">
+    <h1>Templates</h1>
+    <p>View your saved image templates.</p>
+  </header>
+
+  <div class="add-action">
+    <app-button [disabled]="true">
+      <app-icon name="add" />
+      Add Template
+    </app-button>
+    <p>Adding templates is not available yet.</p>
+  </div>
+</div>
+
+@let current = state();
+<section class="templates-panel" aria-labelledby="templates-title">
+  <header class="panel-heading">
+    <h2 id="templates-title">Your templates</h2>
+    @if (current.kind === 'loaded') {
+      <p class="count">{{ current.items.length }} {{ current.items.length === 1 ? 'template' : 'templates' }}</p>
+    }
+  </header>
+
+  @switch (current.kind) {
+    @case ('loading') {
+      <div class="status">
+        <app-progress-bar label="Loading your templates..." />
+      </div>
+    }
+    @case ('loaded') {
+      @if (current.items.length === 0) {
+        <p class="status" role="status">You have no saved templates yet.</p>
+      } @else {
+        <ul class="template-list">
+          @for (template of current.items; track template.id) {
+            <li>
+              <span class="image-icon"><app-icon name="image" /></span>
+              <span class="template-name">{{ template.name }}</span>
+            </li>
+          }
+        </ul>
+      }
+    }
+    @case ('error') {
+      <div class="status error">
+        <app-alert variant="error">Could not load your templates. Try again.</app-alert>
+        <app-button (click)="loadTemplates()">Retry</app-button>
+      </div>
+    }
+  }
+</section>

@@ -1,3 +1,4 @@
+import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
@@ -132,19 +133,104 @@ describe('Component Lab route', () => {
   });
 });
 
+describe('Templates route', () => {
+  it('loads the owner list through the signed-in navigation and bearer interceptor', async () => {
+    const config = CONFIG_FIXTURE;
+    TestBed.configureTestingModule({
+      imports: [App],
+      providers: [...createAppConfig(config).providers, provideHttpClientTesting()],
+    });
+    await TestBed.inject(AuthSession).signIn();
+    const fixture = TestBed.createComponent(App);
+    try {
+      await fixture.whenStable();
+      const router = TestBed.inject(Router);
+      await router.navigateByUrl('/component-lab');
+      await fixture.whenStable();
+      const root: HTMLElement = fixture.nativeElement;
+      const main = root.querySelector('main')!;
+      const shell = root.querySelector('app-layout');
+      const navLink = root.querySelector<HTMLAnchorElement>(
+        'nav[aria-label="Primary navigation"] a[href="/templates"]',
+      );
+      expect(navLink).not.toBeNull();
+
+      navLink!.click();
+      await fixture.whenStable();
+      expect(router.url).toBe('/templates');
+      expect(root.querySelector('app-layout')).toBe(shell);
+      expect(root.querySelectorAll('main')).toHaveLength(1);
+      expect(main.querySelector('h1')?.textContent?.trim()).toBe('Templates');
+      expect(navLink!.getAttribute('aria-current')).toBe('page');
+      expect(document.title).toBe('Templates | Tempics');
+      expect(document.activeElement).toBe(main);
+
+      const http = TestBed.inject(HttpTestingController);
+      const request = http.expectOne(`${config.apiBaseUrl}/templates`);
+      expect(request.request.method).toBe('GET');
+      expect(request.request.headers.get('Authorization')).toBe('Bearer fixture-access-token');
+      request.flush({
+        items: [
+          { id: '11111111-1111-1111-1111-111111111111', name: 'Spring sale' },
+          { id: '22222222-2222-2222-2222-222222222222', name: 'Summer launch' },
+        ],
+      });
+      await fixture.whenStable();
+      expect(main.textContent).toContain('Spring sale');
+      expect(main.textContent).toContain('Summer launch');
+      expect(main.textContent).toMatch(/2\s+templates/i);
+      http.verify();
+    } finally {
+      fixture.destroy();
+    }
+  });
+
+  it('cancels a pending list read when leaving the page', async () => {
+    const config = CONFIG_FIXTURE;
+    TestBed.configureTestingModule({
+      imports: [App],
+      providers: [...createAppConfig(config).providers, provideHttpClientTesting()],
+    });
+    await TestBed.inject(AuthSession).signIn();
+    const fixture = TestBed.createComponent(App);
+    try {
+      await fixture.whenStable();
+      const router = TestBed.inject(Router);
+      await router.navigateByUrl('/templates');
+      await fixture.whenStable();
+      const http = TestBed.inject(HttpTestingController);
+      const request = http.expectOne(`${config.apiBaseUrl}/templates`);
+      expect(request.cancelled).toBe(false);
+
+      await router.navigateByUrl('/component-lab');
+      await fixture.whenStable();
+      expect(request.cancelled).toBe(true);
+      expect(fixture.nativeElement.querySelector('app-templates')).toBeNull();
+      expect(fixture.nativeElement.querySelector('app-component-lab')).not.toBeNull();
+      http.verify({ ignoreCancelled: true });
+    } finally {
+      fixture.destroy();
+    }
+  });
+});
+
 describe('Home route', () => {
-  it.each(['/', '/image-generator'])(
+  it.each(['/', '/image-generator', '/templates'])(
     'starts a fresh app at the sign-in page when opening %s',
     async (url) => {
-      TestBed.configureTestingModule({ providers: [provideRouter(routes)] });
+      TestBed.configureTestingModule({
+        providers: [provideRouter(routes), provideHttpClient(), provideHttpClientTesting()],
+      });
       const harness = await RouterTestingHarness.create(url);
       expect(TestBed.inject(Router).url).toBe('/');
       expect(harness.routeNativeElement?.querySelector('button')?.textContent?.trim()).toBe(
         'Sign in',
       );
       expect(harness.routeNativeElement?.querySelector('app-image-generator')).toBeNull();
+      expect(harness.routeNativeElement?.querySelector('app-templates')).toBeNull();
       expect(harness.routeNativeElement?.querySelector('nav')).toBeNull();
       expect(document.title).toBe('Home | Tempics');
+      TestBed.inject(HttpTestingController).expectNone(() => true);
     },
   );
 });

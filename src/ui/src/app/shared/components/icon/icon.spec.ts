@@ -11,7 +11,7 @@ class IconHost {
 }
 
 describe('Icon', () => {
-  it.each(['add', 'check_circle', 'error'] as const)(
+  it.each(['add', 'check_circle', 'error', 'image'] as const)(
     'renders the local %s glyph as decorative, non-focusable content',
     async (name) => {
       const fixture = TestBed.createComponent(IconHost);

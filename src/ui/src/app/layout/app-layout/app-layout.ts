@@ -17,6 +17,7 @@ export class AppLayout {
 
   protected readonly navItems = [
     { label: 'Image Generator', link: '/image-generator' },
+    { label: 'Templates', link: '/templates' },
     { label: 'Component Lab', link: '/component-lab' },
   ];
 

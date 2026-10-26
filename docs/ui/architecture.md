@@ -10,6 +10,7 @@ are defined by [package.json](../../src/ui/package.json) and
 | --- | --- |
 | `/` | Sign-in action when signed out; image generator when signed in. |
 | `/image-generator` | Guarded direct route to the generator. |
+| `/templates` | Guarded, lazy list of the signed-in caller's saved template names. The Add action is unavailable until a create route exists. |
 | `/component-lab` | Public shared-component workbench. |
 
 [app.routes.ts](../../src/ui/src/app/app.routes.ts) defines routes. A shared layout
@@ -24,6 +25,10 @@ owns navigation, the main landmark, page spacing, and route focus.
 - `shared/auth/`: Entra session, route guard, and bearer interceptor.
 - `shared/config/`: startup configuration.
 - `shared/components/`: reusable controls.
+
+`pages/templates/` owns the list request's loading, loaded, and error states,
+including retry. `shared/api/templates/` owns the typed list transport client.
+The list presents names only; it does not fetch saved AXAML or render previews.
 
 ## Shared Controls
 
