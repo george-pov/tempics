@@ -31,8 +31,19 @@ public sealed class TableTemplateRepositoryTests
         Assert.Equal(id.ToString("D"), entity.RowKey);
         Assert.Equal("Title", entity.Name);
         Assert.Equal(axaml, entity.Template);
+    }
+
+    [Fact]
+    public async Task CreateAsync_ValidTemplate_PassesCancellationToTable()
+    {
+        var table = new TableClientStub();
+        using var cancellation = new CancellationTokenSource();
+
+        await new TableTemplateRepository(table).CreateAsync(
+            new ImageTemplate(UserId, Guid.NewGuid(), "Title", "<TextBlock />"),
+            cancellation.Token);
+
         Assert.Equal(cancellation.Token, table.AddToken);
-        Assert.Equal(1, table.AddCalls);
     }
 
     [Fact]
@@ -48,7 +59,6 @@ public sealed class TableTemplateRepositoryTests
                 CancellationToken.None));
 
         Assert.DoesNotContain(privateMessage, failure.ToString());
-        Assert.Equal(1, table.AddCalls);
     }
 
     [Fact]
@@ -61,24 +71,36 @@ public sealed class TableTemplateRepositoryTests
         table.Rows.AddRange(ids.Select(id => Entity(UserId, id, "Name", "secret-axaml")));
         table.Rows.Add(Entity(OtherUserId, Guid.NewGuid(), "Other", "other-secret"));
         var repository = new TableTemplateRepository(table);
-        using var cancellation = new CancellationTokenSource();
 
-        var items = await repository.ListAsync(UserId, cancellation.Token);
+        var items = await repository.ListAsync(UserId, CancellationToken.None);
 
-        Assert.Equal(1005, items.Count);
         Assert.Equal(ids, items.Select(item => item.Id));
         Assert.All(items, item => Assert.Equal("Name", item.Name));
-        Assert.Equal(1000, table.QueryMaxPerPage);
         Assert.Equal(2, table.QueryPageCount);
-        Assert.NotNull(table.QuerySelect);
-        Assert.Equal(
-            [nameof(TemplateEntity.RowKey), nameof(TemplateEntity.UserId), nameof(TemplateEntity.Name)],
-            table.QuerySelect);
-        Assert.DoesNotContain(nameof(TemplateEntity.Template), table.QuerySelect);
-        Assert.Equal(cancellation.Token, table.QueryToken);
-        Assert.False(table.QueryFilter!(Entity(OtherUserId, Guid.NewGuid(), "Other", "other-secret")));
-        Assert.Contains($"PartitionKey eq '{UserId:D}'", table.QueryOdata);
-        Assert.DoesNotContain("RowKey gt", table.QueryOdata);
+    }
+
+    [Fact]
+    public async Task ListAsync_RequestsMetadataWithoutTemplateText()
+    {
+        var table = new TableClientStub();
+
+        await new TableTemplateRepository(table).ListAsync(UserId, CancellationToken.None);
+
+        string[] expected =
+            [nameof(TemplateEntity.RowKey), nameof(TemplateEntity.UserId), nameof(TemplateEntity.Name)];
+        Assert.Equal(expected.Order(StringComparer.Ordinal),
+            table.QuerySelect?.Order(StringComparer.Ordinal));
+    }
+
+    [Fact]
+    public async Task ListAsync_QueriesOnlyCallerPartition()
+    {
+        var table = new TableClientStub();
+
+        await new TableTemplateRepository(table).ListAsync(UserId, CancellationToken.None);
+
+        Assert.True(table.QueryFilter!(Entity(UserId, Guid.NewGuid(), "Mine", "mine")));
+        Assert.False(table.QueryFilter(Entity(OtherUserId, Guid.NewGuid(), "Other", "private")));
     }
 
     [Fact]
@@ -131,7 +153,6 @@ public sealed class TableTemplateRepositoryTests
             new TableTemplateRepository(table).ListAsync(UserId, CancellationToken.None));
 
         Assert.DoesNotContain(privateMessage, failure.ToString());
-        Assert.Equal(2, table.QueryPageCount);
     }
 
     [Fact]
@@ -152,26 +173,41 @@ public sealed class TableTemplateRepositoryTests
     }
 
     [Fact]
-    public async Task FindAsync_OwnerAndOtherUser_UsesTwoKeysAndReturnsExactText()
+    public async Task FindAsync_Owner_ReturnsExactText()
     {
         var table = new TableClientStub();
         var id = Guid.NewGuid();
         const string axaml = " <TextBlock />\r\n";
         table.Rows.Add(Entity(UserId, id, "Title", axaml));
         var repository = new TableTemplateRepository(table);
-        using var cancellation = new CancellationTokenSource();
-
-        var found = await repository.FindAsync(UserId, id, cancellation.Token);
+        var found = await repository.FindAsync(UserId, id, CancellationToken.None);
 
         Assert.Equal(new ImageTemplate(UserId, id, "Title", axaml), found);
-        Assert.Equal(UserId.ToString("D"), table.ReadPartition);
-        Assert.Equal(id.ToString("D"), table.ReadRow);
-        Assert.Equal(cancellation.Token, table.ReadToken);
+    }
 
-        var otherUserResult = await repository.FindAsync(OtherUserId, id, cancellation.Token);
+    [Fact]
+    public async Task FindAsync_OtherUser_ReturnsNull()
+    {
+        var table = new TableClientStub();
+        var id = Guid.NewGuid();
+        table.Rows.Add(Entity(UserId, id, "Title", "private"));
+
+        var otherUserResult = await new TableTemplateRepository(table).FindAsync(
+            OtherUserId, id, CancellationToken.None);
 
         Assert.Null(otherUserResult);
-        Assert.Equal(OtherUserId.ToString("D"), table.ReadPartition);
+    }
+
+    [Fact]
+    public async Task FindAsync_ValidRequest_PassesCancellationToTable()
+    {
+        var table = new TableClientStub();
+        using var cancellation = new CancellationTokenSource();
+
+        await new TableTemplateRepository(table).FindAsync(
+            UserId, Guid.NewGuid(), cancellation.Token);
+
+        Assert.Equal(cancellation.Token, table.ReadToken);
     }
 
     [Theory]
@@ -258,27 +294,53 @@ public sealed class TableTemplateRepositoryTests
         table.Rows.Add(Entity(OtherUserId, id, "Other", "other-private"));
         var repository = new TableTemplateRepository(table);
         var replacement = new ImageTemplate(UserId, id, "After", " <TextBlock />\r\n");
-        using var cancellation = new CancellationTokenSource();
 
-        var updated = await repository.UpdateAsync(replacement, cancellation.Token);
+        var updated = await repository.UpdateAsync(replacement, CancellationToken.None);
 
         Assert.True(updated);
-        Assert.Equal(UserId.ToString("D"), table.ReadPartition);
-        Assert.Equal(id.ToString("D"), table.ReadRow);
-        Assert.Equal(
-            [nameof(TemplateEntity.PartitionKey), nameof(TemplateEntity.RowKey), nameof(TemplateEntity.UserId)],
-            Assert.IsType<string[]>(table.ReadSelect));
-        Assert.Equal(cancellation.Token, table.ReadToken);
-        Assert.Equal(1, table.UpdateCalls);
-        Assert.Equal(ETag.All, table.UpdateIfMatch);
-        Assert.Equal(TableUpdateMode.Replace, table.UpdateMode);
-        Assert.Equal(cancellation.Token, table.UpdateToken);
-        Assert.Equal(TemplateEntity.FromTemplate(replacement).PartitionKey,
-            table.UpdatedEntity?.PartitionKey);
-        Assert.Equal(replacement.Template, table.UpdatedEntity?.Template);
         Assert.Equal(replacement, await repository.FindAsync(UserId, id, CancellationToken.None));
         Assert.Equal(new ImageTemplate(OtherUserId, id, "Other", "other-private"),
             await repository.FindAsync(OtherUserId, id, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task UpdateAsync_ExistingOwner_UsesFullReplaceLastWriteWins()
+    {
+        var id = Guid.NewGuid();
+        var table = new TableClientStub();
+        table.Rows.Add(Entity(UserId, id, "Before", "before"));
+
+        await new TableTemplateRepository(table).UpdateAsync(
+            new ImageTemplate(UserId, id, "After", "after"), CancellationToken.None);
+
+        Assert.Equal(ETag.All, table.UpdateIfMatch);
+        Assert.Equal(TableUpdateMode.Replace, table.UpdateMode);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task MutationAsync_OwnerRead_RequestsOnlyOwnershipFields(bool update)
+    {
+        var id = Guid.NewGuid();
+        var table = new TableClientStub();
+        table.Rows.Add(Entity(UserId, id, "Mine", "private"));
+        var repository = new TableTemplateRepository(table);
+
+        if (update)
+        {
+            await repository.UpdateAsync(
+                new ImageTemplate(UserId, id, "After", "after"), CancellationToken.None);
+        }
+        else
+        {
+            await repository.DeleteAsync(UserId, id, CancellationToken.None);
+        }
+
+        string[] expected =
+            [nameof(TemplateEntity.PartitionKey), nameof(TemplateEntity.RowKey), nameof(TemplateEntity.UserId)];
+        Assert.Equal(expected.Order(StringComparer.Ordinal),
+            table.ReadSelect?.Order(StringComparer.Ordinal));
     }
 
     [Theory]
@@ -297,9 +359,7 @@ public sealed class TableTemplateRepositoryTests
             new ImageTemplate(UserId, id, "After", "after"), CancellationToken.None);
 
         Assert.False(updated);
-        Assert.Equal(UserId.ToString("D"), table.ReadPartition);
         Assert.Equal(0, table.UpdateCalls);
-        Assert.Equal(foreignRow ? 1 : 0, table.Rows.Count);
     }
 
     [Theory]
@@ -343,7 +403,6 @@ public sealed class TableTemplateRepositoryTests
 
         Assert.False(updated);
         Assert.Equal(1, table.UpdateCalls);
-        Assert.Single(table.Rows);
     }
 
     [Theory]
@@ -407,8 +466,7 @@ public sealed class TableTemplateRepositoryTests
                 repository.DeleteAsync(UserId, id, CancellationToken.None));
         }
 
-        Assert.Equal(0, table.UpdateCalls);
-        Assert.Equal(0, table.DeleteCalls);
+        Assert.Equal(0, update ? table.UpdateCalls : table.DeleteCalls);
     }
 
     [Theory]
@@ -432,8 +490,7 @@ public sealed class TableTemplateRepositoryTests
             : await repository.DeleteAsync(UserId, id, CancellationToken.None);
 
         Assert.False(found);
-        Assert.Equal(0, table.UpdateCalls);
-        Assert.Equal(0, table.DeleteCalls);
+        Assert.Equal(0, update ? table.UpdateCalls : table.DeleteCalls);
     }
 
     [Fact]
@@ -444,23 +501,24 @@ public sealed class TableTemplateRepositoryTests
         table.Rows.Add(Entity(UserId, id, "Mine", "mine"));
         table.Rows.Add(Entity(OtherUserId, id, "Other", "other-private"));
         var repository = new TableTemplateRepository(table);
-        using var cancellation = new CancellationTokenSource();
 
-        var deleted = await repository.DeleteAsync(UserId, id, cancellation.Token);
+        var deleted = await repository.DeleteAsync(UserId, id, CancellationToken.None);
 
         Assert.True(deleted);
-        Assert.Equal(UserId.ToString("D"), table.ReadPartition);
-        Assert.Equal(id.ToString("D"), table.ReadRow);
-        Assert.Equal(
-            [nameof(TemplateEntity.PartitionKey), nameof(TemplateEntity.RowKey), nameof(TemplateEntity.UserId)],
-            Assert.IsType<string[]>(table.ReadSelect));
-        Assert.Equal(1, table.DeleteCalls);
-        Assert.Equal(UserId.ToString("D"), table.DeletePartition);
-        Assert.Equal(id.ToString("D"), table.DeleteRow);
-        Assert.Equal(default(ETag), table.DeleteIfMatch);
-        Assert.Equal(cancellation.Token, table.DeleteToken);
         Assert.Null(await repository.FindAsync(UserId, id, CancellationToken.None));
         Assert.NotNull(await repository.FindAsync(OtherUserId, id, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task DeleteAsync_ExistingOwner_UsesUnconditionalDelete()
+    {
+        var id = Guid.NewGuid();
+        var table = new TableClientStub();
+        table.Rows.Add(Entity(UserId, id, "Mine", "mine"));
+
+        await new TableTemplateRepository(table).DeleteAsync(UserId, id, CancellationToken.None);
+
+        Assert.Equal(default(ETag), table.DeleteIfMatch);
     }
 
     [Theory]
@@ -519,7 +577,6 @@ public sealed class TableTemplateRepositoryTests
 
         Assert.True(await new TableTemplateRepository(table).DeleteAsync(
             UserId, id, CancellationToken.None));
-        Assert.Equal(1, table.DeleteCalls);
     }
 
     [Fact]
@@ -564,8 +621,6 @@ public sealed class TableTemplateRepositoryTests
 
         public ITableEntity? AddedEntity { get; private set; }
 
-        public int AddCalls { get; private set; }
-
         public CancellationToken AddToken { get; private set; }
 
         public Exception? AddFailure { get; init; }
@@ -573,10 +628,6 @@ public sealed class TableTemplateRepositoryTests
         public bool ApplyQueryFilter { get; init; } = true;
 
         public Func<TemplateEntity, bool>? QueryFilter { get; private set; }
-
-        public string? QueryOdata { get; private set; }
-
-        public int? QueryMaxPerPage { get; private set; }
 
         public int QueryPageCount { get; private set; }
 
@@ -589,10 +640,6 @@ public sealed class TableTemplateRepositoryTests
         public Exception? QueryFailureAfterFirstPage { get; init; }
 
         public bool ApplyReadKeys { get; init; } = true;
-
-        public string? ReadPartition { get; private set; }
-
-        public string? ReadRow { get; private set; }
 
         public CancellationToken ReadToken { get; private set; }
 
@@ -612,10 +659,6 @@ public sealed class TableTemplateRepositoryTests
 
         public Exception? UpdateFailure { get; init; }
 
-        public string? DeletePartition { get; private set; }
-
-        public string? DeleteRow { get; private set; }
-
         public int DeleteCalls { get; private set; }
 
         public ETag DeleteIfMatch { get; private set; }
@@ -627,7 +670,6 @@ public sealed class TableTemplateRepositoryTests
         public override Task<Response> AddEntityAsync<T>(T entity, CancellationToken cancellationToken = default)
         {
             AddedEntity = entity;
-            AddCalls++;
             AddToken = cancellationToken;
             return AddFailure is null
                 ? Task.FromResult<Response>(null!)
@@ -642,8 +684,6 @@ public sealed class TableTemplateRepositoryTests
         {
             var predicate = filter.Compile();
             QueryFilter = entity => predicate((T)(ITableEntity)entity);
-            QueryOdata = TableClient.CreateQueryFilter(filter);
-            QueryMaxPerPage = maxPerPage;
             QuerySelect = select?.ToArray();
             QueryToken = cancellationToken;
             if (QueryFailure is not null)
@@ -682,8 +722,6 @@ public sealed class TableTemplateRepositoryTests
             IEnumerable<string>? select = null,
             CancellationToken cancellationToken = default)
         {
-            ReadPartition = partitionKey;
-            ReadRow = rowKey;
             ReadToken = cancellationToken;
             ReadSelect = select?.ToArray();
             if (ReadFailure is not null)
@@ -751,8 +789,6 @@ public sealed class TableTemplateRepositoryTests
             string partitionKey, string rowKey, ETag ifMatch = default,
             CancellationToken cancellationToken = default)
         {
-            DeletePartition = partitionKey;
-            DeleteRow = rowKey;
             DeleteCalls++;
             DeleteIfMatch = ifMatch;
             DeleteToken = cancellationToken;

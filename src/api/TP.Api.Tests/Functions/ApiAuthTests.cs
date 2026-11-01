@@ -3,7 +3,6 @@ using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -73,6 +72,16 @@ public sealed class ApiAuthTests : IDisposable
 
         Assert.False(invoked);
         Assert.Equal(StatusCodes.Status401Unauthorized, http.Response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Invoke_MissingToken_ReturnsBodylessBearerChallenge()
+    {
+        var http = NewHttpContext("missing");
+
+        await new BearerTokenMiddleware().Invoke(
+            new HttpFunctionContext(http), _ => Task.CompletedTask);
+
         Assert.Equal("Bearer", http.Response.Headers.WWWAuthenticate.ToString());
         Assert.Equal("no-store", http.Response.Headers.CacheControl.ToString());
         Assert.Equal(0, http.Response.Body.Length);
@@ -97,6 +106,17 @@ public sealed class ApiAuthTests : IDisposable
 
         Assert.False(invoked);
         Assert.Equal(StatusCodes.Status403Forbidden, http.Response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Invoke_MissingScope_ReturnsBodylessForbiddenResponse()
+    {
+        var http = NewHttpContext("wrong-scope");
+
+        await new BearerTokenMiddleware().Invoke(
+            new HttpFunctionContext(http), _ => Task.CompletedTask);
+
+        Assert.Equal(StatusCodes.Status403Forbidden, http.Response.StatusCode);
         Assert.Equal("no-store", http.Response.Headers.CacheControl.ToString());
         Assert.Equal(0, http.Response.Body.Length);
     }
@@ -119,7 +139,6 @@ public sealed class ApiAuthTests : IDisposable
         });
 
         Assert.True(invoked);
-        Assert.Equal(StatusCodes.Status200OK, http.Response.StatusCode);
     }
 
     [Theory]
@@ -142,26 +161,13 @@ public sealed class ApiAuthTests : IDisposable
             JsonSerializer.Serialize(new { template = axaml })));
         var renderer = new PreviewRendererStub();
         var function = new RenderPreview(new RenderPreviewHandler(renderer));
-        IActionResult? result = null;
-
         await new BearerTokenMiddleware().Invoke(new HttpFunctionContext(http), async _ =>
         {
-            result = await function.RunAsync(http.Request, CancellationToken.None);
+            await function.RunAsync(http.Request, CancellationToken.None);
         });
 
         Assert.Equal(expectedStatus, http.Response.StatusCode);
-        if (scenario == "valid")
-        {
-            Assert.IsType<FileContentResult>(result);
-            Assert.Equal(1, renderer.CallCount);
-        }
-        else
-        {
-            Assert.Null(result);
-            Assert.Equal(0, renderer.CallCount);
-            Assert.Equal(0, http.Response.Body.Length);
-        }
-        Assert.Equal("no-store", http.Response.Headers.CacheControl.ToString());
+        Assert.Equal(scenario == "valid" ? 1 : 0, renderer.CallCount);
     }
 
     [Theory]

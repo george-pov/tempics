@@ -17,35 +17,76 @@ public sealed class ListTemplatesTests
         var items = Enumerable.Range(1, 1_001)
             .Select(index => new TemplateSummary(Guid.NewGuid(), $"Name {index}"))
             .ToArray();
-        var repository = new TemplateRepositoryStub();
-        Guid observedUser = default;
-        CancellationToken observedToken = default;
-        repository.OnList = (userId, token) =>
+        var repository = new TemplateRepositoryStub
         {
-            observedUser = userId;
-            observedToken = token;
-            return Task.FromResult<IReadOnlyList<TemplateSummary>>(items);
+            OnList = (_, _) => Task.FromResult<IReadOnlyList<TemplateSummary>>(items)
+        };
+        var context = TemplateFunctionFixture.Http();
+
+        var result = await new ListTemplates(new ListTemplatesHandler(repository))
+            .RunAsync(context.Request, CancellationToken.None);
+
+        var response = Assert.IsType<ListTemplatesResponse>(Assert.IsType<OkObjectResult>(result).Value);
+        Assert.Equal(items.Select(item => new TemplateSummaryResponse(item.Id, item.Name)),
+            response.Items);
+    }
+
+    [Fact]
+    public async Task RunAsync_UsesAuthenticatedUserAndCancellation()
+    {
+        (Guid UserId, CancellationToken Token) observed = default;
+        var repository = new TemplateRepositoryStub
+        {
+            OnList = (userId, token) =>
+            {
+                observed = (userId, token);
+                return Task.FromResult<IReadOnlyList<TemplateSummary>>([]);
+            }
         };
         var context = TemplateFunctionFixture.Http();
         using var cancellation = new CancellationTokenSource();
 
-        var result = await new ListTemplates(new ListTemplatesHandler(repository))
+        await new ListTemplates(new ListTemplatesHandler(repository))
             .RunAsync(context.Request, cancellation.Token);
 
-        var response = Assert.IsType<ListTemplatesResponse>(Assert.IsType<OkObjectResult>(result).Value);
-        Assert.Equal(TemplateFunctionFixture.UserId, observedUser);
-        Assert.Equal(cancellation.Token, observedToken);
-        Assert.Equal(1_001, response.Items.Count);
-        Assert.Equal(items.Select(item => item.Id), response.Items.Select(item => item.Id));
-        Assert.Equal("no-store", context.Response.Headers.CacheControl.ToString());
-        var json = JsonSerializer.Serialize(response);
-        Assert.Contains("\"items\"", json);
-        Assert.DoesNotContain("\"template\"", json);
-        Assert.DoesNotContain("nextToken", json);
+        Assert.Equal((TemplateFunctionFixture.UserId, cancellation.Token), observed);
     }
 
     [Fact]
-    public async Task RunAsync_EmptyList_ReturnsEmptyItems()
+    public async Task RunAsync_Success_DisablesCaching()
+    {
+        var context = TemplateFunctionFixture.Http();
+
+        await new ListTemplates(new ListTemplatesHandler(new TemplateRepositoryStub()))
+            .RunAsync(context.Request, CancellationToken.None);
+
+        Assert.Equal("no-store", context.Response.Headers.CacheControl.ToString());
+    }
+
+    [Fact]
+    public async Task RunAsync_OwnedList_SerializesOnlyMetadata()
+    {
+        var repository = new TemplateRepositoryStub
+        {
+            OnList = (_, _) => Task.FromResult<IReadOnlyList<TemplateSummary>>(
+                [new TemplateSummary(Guid.NewGuid(), "Name")])
+        };
+        var context = TemplateFunctionFixture.Http();
+
+        var result = await new ListTemplates(new ListTemplatesHandler(repository))
+            .RunAsync(context.Request, CancellationToken.None);
+
+        var response = Assert.IsType<ListTemplatesResponse>(Assert.IsType<OkObjectResult>(result).Value);
+        var json = JsonSerializer.SerializeToElement(response);
+        Assert.Equal(["items"], json.EnumerateObject().Select(property => property.Name));
+        var item = Assert.Single(json.GetProperty("items").EnumerateArray());
+        string[] expected = ["id", "name"];
+        Assert.Equal(expected.Order(StringComparer.Ordinal),
+            item.EnumerateObject().Select(property => property.Name).Order(StringComparer.Ordinal));
+    }
+
+    [Fact]
+    public async Task RunAsync_EmptyList_SerializesEmptyItems()
     {
         var context = TemplateFunctionFixture.Http();
 
@@ -53,7 +94,6 @@ public sealed class ListTemplatesTests
             .RunAsync(context.Request, CancellationToken.None);
 
         var response = Assert.IsType<ListTemplatesResponse>(Assert.IsType<OkObjectResult>(result).Value);
-        Assert.Empty(response.Items);
         Assert.Equal("{\"items\":[]}", JsonSerializer.Serialize(response));
     }
 
@@ -73,7 +113,6 @@ public sealed class ListTemplatesTests
                 .RunAsync(context.Request, CancellationToken.None));
 
         Assert.Equal(privateText, failure.Message);
-        Assert.Equal("no-store", context.Response.Headers.CacheControl.ToString());
     }
 
     [Fact]

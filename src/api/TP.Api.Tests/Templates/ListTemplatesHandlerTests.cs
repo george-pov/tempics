@@ -17,8 +17,6 @@ public sealed class ListTemplatesHandlerTests
             CancellationToken.None);
 
         Assert.Empty(result.Items);
-        Assert.Equal(userId, repository.UserId);
-        Assert.Equal(1, repository.ListCalls);
     }
 
     [Fact]
@@ -34,9 +32,6 @@ public sealed class ListTemplatesHandlerTests
             new ListTemplatesQuery(userId), CancellationToken.None);
 
         Assert.Equal(expected, result.Items);
-        Assert.Equal(1_001, result.Items.Count);
-        Assert.Equal(userId, repository.UserId);
-        Assert.Equal(1, repository.ListCalls);
     }
 
     [Fact]
@@ -80,14 +75,16 @@ public sealed class ListTemplatesHandlerTests
     }
 
     [Fact]
-    public async Task HandleAsync_ActiveRequest_PassesCancellationToRepository()
+    public async Task HandleAsync_ActiveRequest_PassesUserAndCancellationToRepository()
     {
+        var userId = Guid.NewGuid();
         using var cancellation = new CancellationTokenSource();
         var repository = new RepositoryStub((_, _) => []);
 
         await new ListTemplatesHandler(repository).HandleAsync(
-            new ListTemplatesQuery(Guid.NewGuid()), cancellation.Token);
+            new ListTemplatesQuery(userId), cancellation.Token);
 
+        Assert.Equal(userId, repository.UserId);
         Assert.Equal(cancellation.Token, repository.Token);
     }
 

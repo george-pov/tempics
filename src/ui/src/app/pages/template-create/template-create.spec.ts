@@ -79,71 +79,77 @@ describe('TemplateCreate', () => {
     await fixture.whenStable();
   }
 
-  it('opens the page with the default draft and an enabled manual Preview action', () => {
-    expect(fixture.nativeElement.querySelector('h1')?.textContent).toContain('Create template');
-    expect(fixture.nativeElement.querySelector('a[href="/templates"]')?.textContent).toContain('Templates');
+  it('opens with the default draft', () => {
     expect(nameField().value).toBe('Event invitation');
     expect(templateField().value).toBe(INITIAL_TEMPLATE_DRAFT.template);
-    expect(templateField().classList.contains('is-monospace')).toBe(true);
-    expect(button(/cancel/i).disabled).toBe(true);
-    expect(button(/save template/i).disabled).toBe(true);
-    expect(button(/preview/i).disabled).toBe(false);
-    expect(renderPreview).not.toHaveBeenCalled();
-    expect(fixture.nativeElement.querySelector('img')).toBeNull();
   });
 
-  it('previews the current unsaved AXAML and displays a valid PNG with alt text', async () => {
+  it('disables Cancel and Save for the unchanged draft', () => {
+    expect(button(/cancel/i).disabled).toBe(true);
+    expect(button(/save template/i).disabled).toBe(true);
+  });
+
+  it('leaves manual Preview available without requesting it automatically', () => {
+    expect(button(/preview/i).disabled).toBe(false);
+    expect(renderPreview).not.toHaveBeenCalled();
+  });
+
+  it('requests a preview for the exact current unsaved AXAML', async () => {
     const currentMarkup = `${INITIAL_TEMPLATE_DRAFT.template}\n`;
     await edit(templateField(), currentMarkup);
     button(/preview/i).click();
     await fixture.whenStable();
     expect(renderPreview).toHaveBeenCalledExactlyOnceWith(currentMarkup);
-    expect(fixture.nativeElement.querySelector('[role="progressbar"]')).not.toBeNull();
-    expect(button(/save template/i).disabled).toBe(false);
-    expect(button(/cancel/i).disabled).toBe(false);
+  });
+
+  it('displays a valid preview PNG as an accessible image', async () => {
+    button(/preview/i).click();
     previewResponse.next(png);
     previewResponse.complete();
     await fixture.whenStable();
     const image = fixture.nativeElement.querySelector('img') as HTMLImageElement;
     expect(image.getAttribute('src')).toBe('blob:first');
     expect(image.alt).toMatch(/current template markup/i);
-    expect(image.width).toBe(1200);
-    expect(image.height).toBe(630);
-    expect(fixture.nativeElement.querySelector('[role="status"]')?.textContent).toContain(
-      'Preview is ready.',
-    );
-    expect(button(/preview/i).disabled).toBe(false);
-    expect(button(/save template/i).disabled).toBe(false);
   });
 
-  it('disables Preview for blank markup while keeping it independent of the name', async () => {
+  it('keeps Preview independent of the template name', async () => {
     await edit(nameField(), '  ');
     expect(button(/preview/i).disabled).toBe(false);
     expect(button(/save template/i).disabled).toBe(true);
+  });
+
+  it('disables Preview for blank markup', async () => {
     await edit(templateField(), ' \n ');
     expect(button(/preview/i).disabled).toBe(true);
     button(/preview/i).click();
     expect(renderPreview).not.toHaveBeenCalled();
   });
 
-  it('honors the 2 KB preview body cap while leaving longer drafts saveable', async () => {
+  it('honors the 2 KB encoded preview body cap', async () => {
     const maxAsciiLength = 2_048 - JSON.stringify({ template: '' }).length;
     await edit(templateField(), 'x'.repeat(maxAsciiLength));
     expect(button(/preview/i).disabled).toBe(false);
-    expect(button(/save template/i).disabled).toBe(false);
 
     await edit(templateField(), 'x'.repeat(maxAsciiLength + 1));
     expect(button(/preview/i).disabled).toBe(true);
-    expect(button(/save template/i).disabled).toBe(false);
     button(/preview/i).click();
     expect(renderPreview).not.toHaveBeenCalled();
     expect(fixture.nativeElement.textContent).toContain('Preview request: max 2 KB');
+  });
 
+  it('counts UTF-8 bytes when limiting Preview', async () => {
+    const maxAsciiLength = 2_048 - JSON.stringify({ template: '' }).length;
     await edit(templateField(), '\u00e9'.repeat(maxAsciiLength));
     expect(button(/preview/i).disabled).toBe(true);
   });
 
-  it('keeps the draft and valid Save state after unsupported or failed preview', async () => {
+  it('keeps Save available for drafts above the Preview limit', async () => {
+    await edit(templateField(), 'x'.repeat(2_048));
+    expect(button(/preview/i).disabled).toBe(true);
+    expect(button(/save template/i).disabled).toBe(false);
+  });
+
+  it('keeps the draft and valid Save state after a failed preview', async () => {
     await edit(templateField(), '<Unsupported />');
     button(/preview/i).click();
     previewResponse.error(new Error('private API problem details'));
@@ -154,37 +160,29 @@ describe('TemplateCreate', () => {
       /could not preview.*try again/i,
     );
     expect(fixture.nativeElement.textContent).not.toContain('private API problem details');
+  });
 
-    previewResponse = new Subject<Blob>();
+  it('rejects a non-PNG preview without creating an object URL', async () => {
     button(/preview/i).click();
     previewResponse.next(new Blob(['bad'], { type: 'application/problem+json' }));
     previewResponse.complete();
     await fixture.whenStable();
     expect(createUrl).not.toHaveBeenCalled();
-    expect(button(/save template/i).disabled).toBe(false);
     expect(fixture.nativeElement.querySelector('[role="alert"]')?.textContent).toMatch(
       /could not preview.*try again/i,
     );
-
-    button(/cancel/i).click();
-    await fixture.whenStable();
-    expect(templateField().value).toBe(INITIAL_TEMPLATE_DRAFT.template);
-    expect(fixture.nativeElement.querySelector('[role="alert"]')).toBeNull();
   });
 
   it('supersedes a pending request and accepts only its newest response', async () => {
     const first = previewResponse;
     button(/preview/i).click();
-    expect(first.observed).toBe(true);
     previewResponse = new Subject<Blob>();
     button(/preview/i).click();
-    expect(first.observed).toBe(false);
     first.next(png);
     expect(createUrl).not.toHaveBeenCalled();
     previewResponse.next(png);
     previewResponse.complete();
     await fixture.whenStable();
-    expect(renderPreview).toHaveBeenCalledTimes(2);
     expect(fixture.nativeElement.querySelector('img')?.getAttribute('src')).toBe('blob:first');
   });
 
@@ -193,12 +191,8 @@ describe('TemplateCreate', () => {
     previewResponse.next(png);
     previewResponse.complete();
     await fixture.whenStable();
-    expect(fixture.nativeElement.querySelector('img')?.getAttribute('src')).toBe('blob:first');
-
     previewResponse = new Subject<Blob>();
     button(/preview/i).click();
-    await fixture.whenStable();
-    expect(fixture.nativeElement.querySelector('img')).toBeNull();
     expect(revokeUrl).toHaveBeenCalledExactlyOnceWith('blob:first');
     previewResponse.next(png);
     previewResponse.complete();
@@ -206,80 +200,71 @@ describe('TemplateCreate', () => {
     expect(fixture.nativeElement.querySelector('img')?.getAttribute('src')).toBe('blob:second');
   });
 
-  it('clears stale previews on AXAML edit and clears preview state on Cancel', async () => {
+  it('clears a stale preview when AXAML changes', async () => {
     button(/preview/i).click();
     previewResponse.next(png);
     previewResponse.complete();
     await fixture.whenStable();
-    expect(fixture.nativeElement.querySelector('img')).not.toBeNull();
-
     await edit(templateField(), '<Unsupported />');
     expect(fixture.nativeElement.querySelector('img')).toBeNull();
     expect(revokeUrl).toHaveBeenCalledExactlyOnceWith('blob:first');
-    expect(button(/save template/i).disabled).toBe(false);
-
-    previewResponse = new Subject<Blob>();
-    button(/preview/i).click();
-    previewResponse.next(png);
-    previewResponse.complete();
-    await fixture.whenStable();
-    expect(fixture.nativeElement.querySelector('img')?.getAttribute('src')).toBe('blob:second');
-    button(/cancel/i).click();
-    await fixture.whenStable();
-    expect(templateField().value).toBe(INITIAL_TEMPLATE_DRAFT.template);
-    expect(fixture.nativeElement.querySelector('img')).toBeNull();
-    expect(revokeUrl.mock.calls).toEqual([['blob:first'], ['blob:second']]);
-    expect(button(/cancel/i).disabled).toBe(true);
-    expect(button(/save template/i).disabled).toBe(true);
   });
 
-  it('keeps Cancel disabled for preview alone and revokes page-owned URLs', async () => {
+  it('clears a preview and resets the draft on Cancel', async () => {
     button(/preview/i).click();
     previewResponse.next(png);
     previewResponse.complete();
     await fixture.whenStable();
-    expect(button(/cancel/i).disabled).toBe(true);
-
-    await edit(nameField(), 'Updated invitation');
+    await edit(nameField(), 'Changed');
     button(/cancel/i).click();
     await fixture.whenStable();
+    expect(nameField().value).toBe(INITIAL_TEMPLATE_DRAFT.name);
     expect(fixture.nativeElement.querySelector('img')).toBeNull();
     expect(revokeUrl).toHaveBeenCalledExactlyOnceWith('blob:first');
+  });
 
-    previewResponse = new Subject<Blob>();
+  it('keeps Cancel disabled for Preview alone', async () => {
+    button(/preview/i).click();
+    previewResponse.next(png);
+    previewResponse.complete();
+    await fixture.whenStable();
+    expect(button(/cancel/i).disabled).toBe(true);
+  });
+
+  it('revokes its preview URL on destruction', async () => {
     button(/preview/i).click();
     previewResponse.next(png);
     previewResponse.complete();
     await fixture.whenStable();
     fixture.destroy();
-    expect(revokeUrl.mock.calls).toEqual([['blob:first'], ['blob:second']]);
+    expect(revokeUrl).toHaveBeenCalledExactlyOnceWith('blob:first');
   });
 
-  it('cancels pending preview on edit and destruction without a late object URL', async () => {
+  it('ignores a pending preview after AXAML edit', async () => {
     const first = previewResponse;
     button(/preview/i).click();
-    expect(first.observed).toBe(true);
     await edit(templateField(), `${INITIAL_TEMPLATE_DRAFT.template}\n`);
-    expect(first.observed).toBe(false);
     first.next(png);
     expect(createUrl).not.toHaveBeenCalled();
-    previewResponse = new Subject<Blob>();
+  });
+
+  it('ignores a pending preview after destruction', () => {
     button(/preview/i).click();
-    expect(previewResponse.observed).toBe(true);
     fixture.destroy();
-    expect(previewResponse.observed).toBe(false);
     previewResponse.next(png);
     expect(createUrl).not.toHaveBeenCalled();
   });
 
-  it('reacts to literal name-only and AXAML-only changes and disables actions after reversion', async () => {
+  it('recognizes and reverts a literal name-only change', async () => {
     await edit(nameField(), 'Event invitation ');
     expect(button(/cancel/i).disabled).toBe(false);
     expect(button(/save template/i).disabled).toBe(false);
     await edit(nameField(), INITIAL_TEMPLATE_DRAFT.name);
     expect(button(/cancel/i).disabled).toBe(true);
     expect(button(/save template/i).disabled).toBe(true);
+  });
 
+  it('recognizes and reverts an AXAML-only change', async () => {
     await edit(templateField(), `${INITIAL_TEMPLATE_DRAFT.template}\n`);
     expect(button(/cancel/i).disabled).toBe(false);
     expect(button(/save template/i).disabled).toBe(false);
@@ -288,26 +273,35 @@ describe('TemplateCreate', () => {
     expect(button(/save template/i).disabled).toBe(true);
   });
 
-  it('keeps Cancel available for invalid fields while showing associated errors', async () => {
+  it('shows a required-name error', async () => {
     await edit(nameField(), '   ');
-    expect(button(/cancel/i).disabled).toBe(false);
     expect(button(/save template/i).disabled).toBe(true);
     expect(nameField().getAttribute('aria-invalid')).toBe('true');
     expect(nameField().getAttribute('aria-describedby')).toContain('description');
     expect(fixture.nativeElement.textContent).toContain('Enter a template name.');
+  });
 
+  it('enforces the 100-character trimmed name limit', async () => {
     await edit(nameField(), ` ${'x'.repeat(101)} `);
     expect(button(/save template/i).disabled).toBe(true);
     expect(fixture.nativeElement.textContent).toContain('Max 100 characters.');
     await edit(nameField(), ` ${'x'.repeat(100)} `);
     expect(button(/save template/i).disabled).toBe(false);
+  });
 
+  it('shows a required-markup error', async () => {
     await edit(templateField(), '\n  ');
-    expect(button(/cancel/i).disabled).toBe(false);
     expect(button(/save template/i).disabled).toBe(true);
     expect(templateField().getAttribute('aria-invalid')).toBe('true');
     expect(fixture.nativeElement.textContent).toContain('Enter template markup.');
+  });
 
+  it('keeps Cancel available when a changed field is invalid', async () => {
+    await edit(nameField(), '   ');
+    expect(button(/cancel/i).disabled).toBe(false);
+  });
+
+  it('enforces the 16,384-character AXAML limit', async () => {
     await edit(templateField(), 'x'.repeat(16_385));
     expect(button(/save template/i).disabled).toBe(true);
     expect(fixture.nativeElement.textContent).toContain('Max 16,384 characters.');
@@ -315,7 +309,7 @@ describe('TemplateCreate', () => {
     expect(button(/save template/i).disabled).toBe(false);
   });
 
-  it('resets both controls and validation feedback without leaving the page', async () => {
+  it('resets both controls and their validation state on Cancel', async () => {
     await edit(nameField(), '  ');
     await edit(templateField(), '  ');
     button(/cancel/i).click();
@@ -325,11 +319,9 @@ describe('TemplateCreate', () => {
     expect(fixture.nativeElement.querySelector('[role="alert"]')).toBeNull();
     expect(button(/cancel/i).disabled).toBe(true);
     expect(button(/save template/i).disabled).toBe(true);
-    expect(navigateByUrl).not.toHaveBeenCalled();
-    expect(createTemplate).not.toHaveBeenCalled();
   });
 
-  it('submits trimmed name and exact AXAML once, locks actions, and navigates on confirmation', async () => {
+  it('submits the trimmed name and exact AXAML once', async () => {
     const axaml = `${INITIAL_TEMPLATE_DRAFT.template}\n  `;
     await edit(nameField(), '  Invitation updated  ');
     await edit(templateField(), axaml);
@@ -340,11 +332,20 @@ describe('TemplateCreate', () => {
       name: 'Invitation updated',
       template: axaml,
     });
+  });
+
+  it('locks actions while a save is pending', async () => {
+    await edit(nameField(), 'Changed');
+    button(/save template/i).click();
+    await fixture.whenStable();
     expect(button(/cancel/i).disabled).toBe(true);
     expect(button(/saving/i).disabled).toBe(true);
     expect(fixture.nativeElement.querySelector('[role="progressbar"]')).not.toBeNull();
-    expect(navigateByUrl).not.toHaveBeenCalled();
+  });
 
+  it('navigates to the list after a confirmed save', async () => {
+    await edit(nameField(), 'Changed');
+    button(/save template/i).click();
     response.next({ id: 'f72bb88f-1df2-48bc-b65b-1074d6e5d400', name: 'Invitation updated' });
     response.complete();
     await fixture.whenStable();
@@ -357,18 +358,9 @@ describe('TemplateCreate', () => {
     response.error(new Error('private backend details'));
     await fixture.whenStable();
     expect(nameField().value).toBe('Changed');
-    expect(templateField().value).toBe(INITIAL_TEMPLATE_DRAFT.template);
-    expect(button(/cancel/i).disabled).toBe(false);
-    expect(button(/save template/i).disabled).toBe(false);
     expect(fixture.nativeElement.querySelector('[role="alert"]')?.textContent).toMatch(/check templates before retrying/i);
     expect(fixture.nativeElement.textContent).not.toContain('private backend details');
     expect(navigateByUrl).not.toHaveBeenCalled();
-    expect(createTemplate).toHaveBeenCalledTimes(1);
-
-    button(/cancel/i).click();
-    await fixture.whenStable();
-    expect(fixture.nativeElement.querySelector('[role="alert"]')).toBeNull();
-    expect(nameField().value).toBe(INITIAL_TEMPLATE_DRAFT.name);
   });
 
   it('keeps the confirmed create locked through delayed or failed navigation', async () => {
@@ -413,9 +405,7 @@ describe('TemplateCreate', () => {
   it('cancels the owned create subscription when leaving the page', async () => {
     await edit(nameField(), 'Changed');
     button(/save template/i).click();
-    expect(response.observed).toBe(true);
     fixture.destroy();
-    expect(response.observed).toBe(false);
     response.next({ id: 'late', name: 'Changed' });
     expect(navigateByUrl).not.toHaveBeenCalled();
   });

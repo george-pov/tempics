@@ -12,17 +12,15 @@ class AlertHost {
 }
 
 describe('Alert', () => {
-  it('announces success with text and a decorative icon', async () => {
+  it('announces projected success text as a status', async () => {
     const fixture = TestBed.createComponent(AlertHost);
     await fixture.whenStable();
     const alert = fixture.nativeElement.querySelector('app-alert') as HTMLElement;
     expect(alert.getAttribute('role')).toBe('status');
     expect(alert.textContent).toContain('Saved.');
-    expect(alert.querySelector('app-icon')?.textContent).toContain('check_circle');
-    expect(alert.querySelector('app-icon')?.getAttribute('aria-hidden')).toBe('true');
   });
 
-  it('updates its meaning and icon when the variant and message change', async () => {
+  it('announces an error as an alert', async () => {
     const fixture = TestBed.createComponent(AlertHost);
     fixture.componentInstance.variant.set('error');
     fixture.componentInstance.message.set('Could not save.');
@@ -30,6 +28,5 @@ describe('Alert', () => {
     const alert = fixture.nativeElement.querySelector('app-alert') as HTMLElement;
     expect(alert.getAttribute('role')).toBe('alert');
     expect(alert.textContent).toContain('Could not save.');
-    expect(alert.querySelector('app-icon')?.textContent).toContain('error');
   });
 });

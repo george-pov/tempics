@@ -3,6 +3,7 @@
 Use Vitest and Angular TestBed through the configured unit-test builder.
 Keep `.spec.ts` files beside the code. Commands are in
 [build and test](build-and-test.md).
+Apply the shared [testing principles](../../development/testing.md).
 
 - Test rendered behavior, accessible roles, user actions, and app-owned contracts.
 - Test pure logic without Angular where possible.

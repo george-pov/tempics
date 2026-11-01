@@ -15,7 +15,7 @@ public sealed class TemplateStoreOptionsTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public void AddTemplateStore_EitherMode_RegistersSameRepository(bool useUri)
+    public void AddTemplateStore_EitherMode_SelectsConfiguredTable(bool useUri)
     {
         var services = new ServiceCollection();
         services.AddTemplateStore(Configuration(
@@ -26,8 +26,16 @@ public sealed class TemplateStoreOptionsTests
         var table = provider.GetRequiredService<TableClient>();
         Assert.Equal(TemplateStoreOptions.TableName, table.Name);
         Assert.Equal(useUri ? "tables.example.test" : "127.0.0.1", table.Uri.Host);
+    }
+
+    [Fact]
+    public void AddTemplateStore_Configured_RegistersTableRepository()
+    {
+        var services = new ServiceCollection();
+        services.AddTemplateStore(Configuration(connectionString: "UseDevelopmentStorage=true"));
+        using var provider = services.BuildServiceProvider();
+
         Assert.IsType<TableTemplateRepository>(provider.GetRequiredService<ITemplateRepository>());
-        Assert.Single(provider.GetServices<IHostedService>());
     }
 
     [Fact]
@@ -75,7 +83,6 @@ public sealed class TemplateStoreOptionsTests
         using var cancellationSource = new CancellationTokenSource();
         var cancellationToken = cancellationSource.Token;
 
-        Assert.Empty(recording.CreatedTables);
         await initializer.StartAsync(cancellationToken);
         await initializer.StopAsync(cancellationToken);
 

@@ -18,18 +18,25 @@ public sealed class RenderSampleTests
         var renderer = new RendererStub(_ => Task.FromResult(new RenderImageResult(png)));
         var function = CreateFunction(renderer);
         var context = new DefaultHttpContext();
-        using var cancellation = new CancellationTokenSource();
 
-        var result = await function.RunAsync(context.Request, cancellation.Token);
+        var result = await function.RunAsync(context.Request, CancellationToken.None);
 
         var file = Assert.IsType<FileContentResult>(result);
-        Assert.Equal(StatusCodes.Status200OK, context.Response.StatusCode);
         Assert.Equal("image/png", file.ContentType);
         Assert.Equal(png, file.FileContents);
         Assert.True(string.IsNullOrEmpty(file.FileDownloadName));
+    }
+
+    [Fact]
+    public async Task RunAsync_RenderSucceeds_DisablesCaching()
+    {
+        var renderer = new RendererStub(_ => Task.FromResult(new RenderImageResult([1])));
+        var function = CreateFunction(renderer);
+        var context = new DefaultHttpContext();
+
+        await function.RunAsync(context.Request, CancellationToken.None);
+
         Assert.Equal("no-store", context.Response.Headers.CacheControl.ToString());
-        Assert.False(context.Response.Headers.ContainsKey("Content-Disposition"));
-        Assert.Equal(cancellation.Token, renderer.Token);
     }
 
     [Theory]
@@ -48,7 +55,6 @@ public sealed class RenderSampleTests
             function.RunAsync(context.Request, CancellationToken.None));
 
         Assert.Same(failure, observed);
-        Assert.Equal("no-store", context.Response.Headers.CacheControl.ToString());
     }
 
     [Fact]
@@ -67,7 +73,6 @@ public sealed class RenderSampleTests
             function.RunAsync(context.Request, cancellation.Token));
 
         Assert.Equal(cancellation.Token, failure.CancellationToken);
-        Assert.Equal(cancellation.Token, renderer.Token);
     }
 
     [Fact]
@@ -103,13 +108,10 @@ public sealed class RenderSampleTests
     private sealed class RendererStub(
         Func<CancellationToken, Task<RenderImageResult>> render) : IAxamlRenderer
     {
-        public CancellationToken Token { get; private set; }
-
         public Task<RenderImageResult> RenderAsync(
             ReadOnlyMemory<byte> axaml,
             CancellationToken cancellationToken)
         {
-            Token = cancellationToken;
             return render(cancellationToken);
         }
     }

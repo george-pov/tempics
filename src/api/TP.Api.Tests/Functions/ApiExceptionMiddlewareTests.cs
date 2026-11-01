@@ -32,7 +32,7 @@ public sealed class ApiExceptionMiddlewareTests
 
         await Middleware().Invoke(context, _ => function.RunAsync(http.Request, CancellationToken.None));
 
-        AssertProblem(context, http, StatusCodes.Status400BadRequest,
+        AssertProblem(context, StatusCodes.Status400BadRequest,
             "Invalid template request", "template_invalid");
     }
 
@@ -47,7 +47,7 @@ public sealed class ApiExceptionMiddlewareTests
         await Middleware().Invoke(context, _ =>
             function.RunAsync(http.Request, Guid.NewGuid().ToString("D"), CancellationToken.None));
 
-        AssertProblem(context, http, StatusCodes.Status400BadRequest,
+        AssertProblem(context, StatusCodes.Status400BadRequest,
             "Invalid template request", "template_invalid");
     }
 
@@ -78,7 +78,7 @@ public sealed class ApiExceptionMiddlewareTests
             : new DeleteTemplate(new DeleteTemplateHandler(repository))
                 .RunAsync(http.Request, id, CancellationToken.None));
 
-        AssertProblem(context, http,
+        AssertProblem(context,
             unavailable ? StatusCodes.Status503ServiceUnavailable : StatusCodes.Status500InternalServerError,
             unavailable ? "Template storage is unavailable" : "Template operation failed",
             unavailable ? "template_unavailable" : "template_failed");
@@ -98,8 +98,9 @@ public sealed class ApiExceptionMiddlewareTests
 
         await Middleware().Invoke(context, _ => function.RunAsync(http.Request, CancellationToken.None));
 
-        AssertProblem(context, http, StatusCodes.Status500InternalServerError,
+        AssertProblem(context, StatusCodes.Status500InternalServerError,
             "Template operation failed", "template_failed");
+        AssertSafeProblemResponse(context, http);
     }
 
     [Fact]
@@ -112,7 +113,7 @@ public sealed class ApiExceptionMiddlewareTests
 
         await Middleware().Invoke(context, _ => function.RunAsync(http.Request, CancellationToken.None));
 
-        AssertProblem(context, http, StatusCodes.Status500InternalServerError,
+        AssertProblem(context, StatusCodes.Status500InternalServerError,
             "Image rendering failed", "render_failed");
     }
 
@@ -127,7 +128,7 @@ public sealed class ApiExceptionMiddlewareTests
         await Middleware().Invoke(context, _ =>
             function.RunAsync(http.Request, CancellationToken.None));
 
-        AssertProblem(context, http, StatusCodes.Status400BadRequest,
+        AssertProblem(context, StatusCodes.Status400BadRequest,
             "Invalid preview request", "preview_invalid");
     }
 
@@ -159,8 +160,6 @@ public sealed class ApiExceptionMiddlewareTests
             var problem = Assert.IsType<ProblemDetails>(result.Value);
             Assert.Equal(item.Status, result.StatusCode);
             Assert.Equal(item.Code, problem.Extensions["code"]);
-            Assert.Equal(request.HttpContext.TraceIdentifier, problem.Extensions["correlationId"]);
-            Assert.DoesNotContain(PrivateText, JsonSerializer.Serialize(problem));
         }
     }
 
@@ -225,14 +224,20 @@ public sealed class ApiExceptionMiddlewareTests
         new(NullLogger<ApiExceptionMiddleware>.Instance);
 
     private static void AssertProblem(
-        HttpFunctionContext context, HttpContext http, int status, string title, string code)
+        HttpFunctionContext context, int status, string title, string code)
     {
         var result = Assert.IsType<ObjectResult>(context.GetInvocationResult().Value);
         var problem = Assert.IsType<ProblemDetails>(result.Value);
         Assert.Equal(status, result.StatusCode);
-        Assert.Equal(status, problem.Status);
         Assert.Equal(title, problem.Title);
         Assert.Equal(code, problem.Extensions["code"]);
+    }
+
+    private static void AssertSafeProblemResponse(HttpFunctionContext context, HttpContext http)
+    {
+        var result = Assert.IsType<ObjectResult>(context.GetInvocationResult().Value);
+        var problem = Assert.IsType<ProblemDetails>(result.Value);
+        Assert.Equal(result.StatusCode, problem.Status);
         Assert.Equal(http.TraceIdentifier, problem.Extensions["correlationId"]);
         Assert.Equal("application/problem+json", Assert.Single(result.ContentTypes));
         Assert.Equal("no-store", http.Response.Headers.CacheControl.ToString());

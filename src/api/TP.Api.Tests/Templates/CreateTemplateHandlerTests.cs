@@ -12,19 +12,26 @@ public sealed class CreateTemplateHandlerTests
         const string text = "  <Border>\r\n  text  \r\n</Border>  ";
         var repository = new RepositoryStub();
         var handler = new CreateTemplateHandler(repository);
-        using var cancellation = new CancellationTokenSource();
 
         var result = await handler.HandleAsync(
             new CreateTemplateCommand(userId, "  Invoice  ", text),
-            cancellation.Token);
+            CancellationToken.None);
 
         Assert.NotEqual(Guid.Empty, result.Id);
         Assert.Equal("Invoice", result.Name);
-        Assert.Equal(1, repository.CreateCalls);
-        Assert.Equal(userId, repository.Created!.UserId);
-        Assert.Equal(result.Id, repository.Created.Id);
-        Assert.Equal(result.Name, repository.Created.Name);
-        Assert.Equal(text, repository.Created.Template);
+        Assert.Equal(new ImageTemplate(userId, result.Id, "Invoice", text), repository.Created);
+    }
+
+    [Fact]
+    public async Task HandleAsync_ValidInput_PassesCancellationToRepository()
+    {
+        var repository = new RepositoryStub();
+        using var cancellation = new CancellationTokenSource();
+
+        await new CreateTemplateHandler(repository).HandleAsync(
+            new CreateTemplateCommand(Guid.NewGuid(), "Name", "<Border/>"),
+            cancellation.Token);
+
         Assert.Equal(cancellation.Token, repository.Token);
     }
 

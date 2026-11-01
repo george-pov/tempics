@@ -8,20 +8,30 @@ public sealed class UpdateTemplateHandlerTests
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
-    public async Task HandleAsync_ValidReplacement_ForwardsOwnedFieldsAndResult(bool exists)
+    public async Task HandleAsync_RepositoryResult_ReturnsResult(bool exists)
+    {
+        var repository = new RepositoryStub { UpdateResult = exists };
+
+        var result = await new UpdateTemplateHandler(repository).HandleAsync(
+            new UpdateTemplateCommand(Guid.NewGuid(), Guid.NewGuid(), "Name", "<Border/>"),
+            CancellationToken.None);
+
+        Assert.Equal(exists, result);
+    }
+
+    [Fact]
+    public async Task HandleAsync_ValidReplacement_ForwardsOwnedFieldsAndCancellation()
     {
         var userId = Guid.NewGuid();
         var id = Guid.NewGuid();
         const string text = "  <Border>\r\n exact text </Border>  ";
-        var repository = new RepositoryStub { UpdateResult = exists };
+        var repository = new RepositoryStub { UpdateResult = true };
         using var cancellation = new CancellationTokenSource();
 
-        var result = await new UpdateTemplateHandler(repository).HandleAsync(
+        await new UpdateTemplateHandler(repository).HandleAsync(
             new UpdateTemplateCommand(userId, id, "  Invoice  ", text),
             cancellation.Token);
 
-        Assert.Equal(exists, result);
-        Assert.Equal(1, repository.UpdateCalls);
         Assert.Equal(new ImageTemplate(userId, id, "Invoice", text), repository.Updated);
         Assert.Equal(cancellation.Token, repository.Token);
     }

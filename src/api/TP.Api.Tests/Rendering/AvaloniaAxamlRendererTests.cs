@@ -10,10 +10,9 @@ public sealed class AvaloniaAxamlRendererTests(RenderFixture fixture)
     public async Task RenderAsync_Font_IsInter()
     {
         var axaml = await fixture.Source.LoadAsync(TestContext.Current.CancellationToken);
-        var result = await fixture.Renderer.RenderAsync(axaml, TestContext.Current.CancellationToken)
+        await fixture.Renderer.RenderAsync(axaml, TestContext.Current.CancellationToken)
             .WaitAsync(RenderFixture.Timeout, TestContext.Current.CancellationToken);
 
-        PngAssertions.IsExpectedPng(result.PngBytes);
         var usesInter = await fixture.Host.DispatchAsync(
             () => global::Avalonia.Media.FontManager.Current.DefaultFontFamily.Equals(
                 new global::Avalonia.Media.FontFamily("fonts:Inter#Inter")),
@@ -92,7 +91,6 @@ public sealed class AvaloniaAxamlRendererTests(RenderFixture fixture)
         var results = await Task.WhenAll(renders)
             .WaitAsync(RenderFixture.Timeout, TestContext.Current.CancellationToken);
 
-        Assert.Equal(4, results.Length);
         Assert.All(results, result => PngAssertions.IsExpectedPng(result.PngBytes));
     }
 

@@ -41,25 +41,32 @@ describe('ConfirmDialog', () => {
     invoker.click();
     await settle(fixture);
     const dialog = document.querySelector<HTMLElement>('[role="dialog"]');
-    expect(dialog).not.toBeNull();
-    return { fixture, dialog: dialog!, invoker };
+    if (!dialog) throw new Error('Confirmation dialog did not open');
+    return { fixture, dialog, invoker };
   }
 
-  it('renders supplied copy as text in a titled and described destructive dialog', async () => {
-    const { fixture, dialog } = await open();
+  it('renders supplied title, message, and action labels', async () => {
+    const { dialog } = await open();
     const title = dialog.querySelector('h2')!;
     const message = dialog.querySelector('p')!;
     const buttons = dialog.querySelectorAll<HTMLButtonElement>('button');
-    expect(dialog.getAttribute('aria-labelledby')).toBe(title.id);
-    expect(dialog.getAttribute('aria-describedby')).toBe(message.id);
     expect(title.textContent?.trim()).toBe(options.title);
     expect(message.textContent?.trim()).toBe(options.message);
     expect(Array.from(buttons, (button) => button.textContent?.trim())).toEqual([
       options.cancelLabel,
       options.confirmLabel,
     ]);
-    expect(buttons[1].classList.contains('is-destructive')).toBe(true);
-    buttons[1].click();
+  });
+
+  it('associates the title and message with the dialog', async () => {
+    const { dialog } = await open();
+    expect(dialog.getAttribute('aria-labelledby')).toBe(dialog.querySelector('h2')?.id);
+    expect(dialog.getAttribute('aria-describedby')).toBe(dialog.querySelector('p')?.id);
+  });
+
+  it('confirms through the visible action button', async () => {
+    const { fixture, dialog } = await open();
+    dialog.querySelectorAll<HTMLButtonElement>('button')[1].click();
     await settle(fixture);
     expect(fixture.componentInstance.result).toBe(true);
   });
@@ -79,9 +86,6 @@ describe('ConfirmDialog', () => {
     expect(dialog.querySelector('img, script')).toBeNull();
     expect(dialog.querySelector('h2')?.textContent).toBe(malicious.title);
     expect(dialog.querySelector('p')?.textContent).toBe(malicious.message);
-    expect(dialog.querySelector('.is-destructive')).toBeNull();
-    dialog.querySelector<HTMLButtonElement>('.cancel button')!.click();
-    await settle(fixture);
   });
 
   it('closes with cancellation through the visible Cancel button', async () => {

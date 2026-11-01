@@ -13,35 +13,80 @@ namespace TP.Api.Tests.Functions;
 public sealed class UpdateTemplateTests
 {
     [Fact]
-    public async Task RunAsync_ValidPayload_ReplacesOwnedTemplateWithoutResponseBody()
+    public async Task RunAsync_ValidPayload_ReplacesOwnedTemplate()
     {
         var id = Guid.NewGuid();
         ImageTemplate? replacement = null;
-        CancellationToken observedToken = default;
         var repository = new TemplateRepositoryStub
         {
-            OnUpdate = (template, token) =>
+            OnUpdate = (template, _) =>
             {
                 replacement = template;
-                observedToken = token;
                 return Task.FromResult(true);
             }
         };
         var context = TemplateFunctionFixture.Http();
         context.Request.Body = Body("{\"name\":\"  Letter  \",\"template\":\"<Text>  hi  </Text>\"}");
-        using var cancellation = new CancellationTokenSource();
+
+        await new UpdateTemplate(new UpdateTemplateHandler(repository))
+            .RunAsync(context.Request, id.ToString("D"), CancellationToken.None);
+
+        Assert.Equal(new ImageTemplate(TemplateFunctionFixture.UserId, id,
+            "Letter", "<Text>  hi  </Text>"), replacement);
+    }
+
+    [Fact]
+    public async Task RunAsync_ValidPayload_ReturnsNoContent()
+    {
+        var repository = new TemplateRepositoryStub
+        {
+            OnUpdate = (_, _) => Task.FromResult(true)
+        };
+        var context = TemplateFunctionFixture.Http();
+        context.Request.Body = Body("{\"name\":\"Letter\",\"template\":\"A\"}");
 
         var result = await new UpdateTemplate(new UpdateTemplateHandler(repository))
-            .RunAsync(context.Request, id.ToString("D"), cancellation.Token);
+            .RunAsync(context.Request, Guid.NewGuid().ToString("D"), CancellationToken.None);
 
         Assert.IsType<NoContentResult>(result);
-        Assert.NotNull(replacement);
-        Assert.Equal(TemplateFunctionFixture.UserId, replacement.UserId);
-        Assert.Equal(id, replacement.Id);
-        Assert.Equal("Letter", replacement.Name);
-        Assert.Equal("<Text>  hi  </Text>", replacement.Template);
-        Assert.Equal(cancellation.Token, observedToken);
+    }
+
+    [Fact]
+    public async Task RunAsync_ValidPayload_DisablesCaching()
+    {
+        var repository = new TemplateRepositoryStub
+        {
+            OnUpdate = (_, _) => Task.FromResult(true)
+        };
+        var context = TemplateFunctionFixture.Http();
+        context.Request.Body = Body("{\"name\":\"Letter\",\"template\":\"A\"}");
+
+        await new UpdateTemplate(new UpdateTemplateHandler(repository))
+            .RunAsync(context.Request, Guid.NewGuid().ToString("D"), CancellationToken.None);
+
         Assert.Equal("no-store", context.Response.Headers.CacheControl.ToString());
+    }
+
+    [Fact]
+    public async Task RunAsync_ValidPayload_PassesCancellationToRepository()
+    {
+        CancellationToken observed = default;
+        var repository = new TemplateRepositoryStub
+        {
+            OnUpdate = (_, token) =>
+            {
+                observed = token;
+                return Task.FromResult(true);
+            }
+        };
+        var context = TemplateFunctionFixture.Http();
+        context.Request.Body = Body("{\"name\":\"Letter\",\"template\":\"A\"}");
+        using var cancellation = new CancellationTokenSource();
+
+        await new UpdateTemplate(new UpdateTemplateHandler(repository))
+            .RunAsync(context.Request, Guid.NewGuid().ToString("D"), cancellation.Token);
+
+        Assert.Equal(cancellation.Token, observed);
     }
 
     [Fact]
@@ -70,8 +115,6 @@ public sealed class UpdateTemplateTests
         Assert.Equal(StatusCodes.Status404NotFound, first.StatusCode);
         Assert.Equal(StatusCodes.Status404NotFound, second.StatusCode);
         Assert.Equal(JsonSerializer.Serialize(first.Value), JsonSerializer.Serialize(second.Value));
-        Assert.Equal("no-store", unknown.Response.Headers.CacheControl.ToString());
-        Assert.Equal("no-store", foreign.Response.Headers.CacheControl.ToString());
     }
 
     [Theory]
@@ -98,6 +141,18 @@ public sealed class UpdateTemplateTests
         Assert.Equal(0, writes);
     }
 
+    [Fact]
+    public async Task RunAsync_InvalidId_DisablesCaching()
+    {
+        var context = TemplateFunctionFixture.Http();
+        context.Request.Body = Body("{\"name\":\"X\",\"template\":\"Y\"}");
+
+        await new UpdateTemplate(new UpdateTemplateHandler(new TemplateRepositoryStub()))
+            .RunAsync(context.Request, "bad-id", CancellationToken.None);
+
+        Assert.Equal("no-store", context.Response.Headers.CacheControl.ToString());
+    }
+
     [Theory]
     [InlineData("{broken")]
     [InlineData("{\"name\":\"X\",\"template\":\"A\",\"userId\":\"evil\"}")]
@@ -120,7 +175,6 @@ public sealed class UpdateTemplateTests
                 .RunAsync(context.Request, Guid.NewGuid().ToString("D"), CancellationToken.None));
 
         Assert.Equal(0, writes);
-        Assert.Equal("no-store", context.Response.Headers.CacheControl.ToString());
     }
 
     [Fact]
@@ -170,8 +224,11 @@ public sealed class UpdateTemplateTests
         Assert.Equal(0, writes);
     }
 
-    [Fact]
-    public async Task RunAsync_FieldLimits_ThrowWithoutWrite()
+    [Theory]
+    [InlineData(true, TemplateInputError.NameTooLong)]
+    [InlineData(false, TemplateInputError.TemplateTooLarge)]
+    public async Task RunAsync_FieldLimit_ThrowsWithoutWrite(
+        bool longName, TemplateInputError expectedError)
     {
         var writes = 0;
         var repository = new TemplateRepositoryStub
@@ -182,32 +239,25 @@ public sealed class UpdateTemplateTests
                 return Task.FromResult(true);
             }
         };
-        var function = new UpdateTemplate(new UpdateTemplateHandler(repository));
-        var longName = TemplateFunctionFixture.Http();
-        longName.Request.Body = Body(JsonSerializer.Serialize(new
+        var context = TemplateFunctionFixture.Http();
+        context.Request.Body = Body(JsonSerializer.Serialize(new
         {
-            name = new string('n', 101),
-            template = "A"
-        }));
-        var longTemplate = TemplateFunctionFixture.Http();
-        longTemplate.Request.Body = Body(JsonSerializer.Serialize(new
-        {
-            name = "X",
-            template = new string('x', 16_385)
+            name = longName ? new string('n', 101) : "X",
+            template = longName ? "A" : new string('x', 16_385)
         }));
 
-        var nameFailure = await Assert.ThrowsAsync<TemplateInputException>(() =>
-            function.RunAsync(longName.Request, Guid.NewGuid().ToString("D"), CancellationToken.None));
-        var templateFailure = await Assert.ThrowsAsync<TemplateInputException>(() =>
-            function.RunAsync(longTemplate.Request, Guid.NewGuid().ToString("D"), CancellationToken.None));
+        var failure = await Assert.ThrowsAsync<TemplateInputException>(() =>
+            new UpdateTemplate(new UpdateTemplateHandler(repository))
+                .RunAsync(context.Request, Guid.NewGuid().ToString("D"), CancellationToken.None));
 
-        Assert.Equal(TemplateInputError.NameTooLong, nameFailure.Error);
-        Assert.Equal(TemplateInputError.TemplateTooLarge, templateFailure.Error);
+        Assert.Equal(expectedError, failure.Error);
         Assert.Equal(0, writes);
     }
 
-    [Fact]
-    public async Task RunAsync_ExcessiveKnownOrStreamingBody_ReturnsTooLargeWithoutWrite()
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task RunAsync_ExcessiveBody_ReturnsTooLargeWithoutWrite(bool knownLength)
     {
         var writes = 0;
         var repository = new TemplateRepositoryStub
@@ -218,20 +268,17 @@ public sealed class UpdateTemplateTests
                 return Task.FromResult(true);
             }
         };
-        var function = new UpdateTemplate(new UpdateTemplateHandler(repository));
-        var known = TemplateFunctionFixture.Http();
-        known.Request.ContentLength = 128 * 1024 + 1;
-        known.Request.Body = Body("{}");
-        var streaming = TemplateFunctionFixture.Http();
-        streaming.Request.Body = Body(new string('x', 128 * 1024 + 1));
+        var context = TemplateFunctionFixture.Http();
+        context.Request.Body = Body(knownLength ? "{}" : new string('x', 128 * 1024 + 1));
+        if (knownLength)
+        {
+            context.Request.ContentLength = 128 * 1024 + 1;
+        }
 
-        var knownResult = await function.RunAsync(
-            known.Request, Guid.NewGuid().ToString("D"), CancellationToken.None);
-        var streamingResult = await function.RunAsync(
-            streaming.Request, Guid.NewGuid().ToString("D"), CancellationToken.None);
+        var result = await new UpdateTemplate(new UpdateTemplateHandler(repository))
+            .RunAsync(context.Request, Guid.NewGuid().ToString("D"), CancellationToken.None);
 
-        Assert.Equal(StatusCodes.Status413PayloadTooLarge, Assert.IsType<ObjectResult>(knownResult).StatusCode);
-        Assert.Equal(StatusCodes.Status413PayloadTooLarge, Assert.IsType<ObjectResult>(streamingResult).StatusCode);
+        Assert.Equal(StatusCodes.Status413PayloadTooLarge, Assert.IsType<ObjectResult>(result).StatusCode);
         Assert.Equal(0, writes);
     }
 

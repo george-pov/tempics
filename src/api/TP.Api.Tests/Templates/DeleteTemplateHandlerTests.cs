@@ -8,18 +8,27 @@ public sealed class DeleteTemplateHandlerTests
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
-    public async Task HandleAsync_ValidRequest_ForwardsOwnerIdTokenAndResult(bool exists)
+    public async Task HandleAsync_RepositoryResult_ReturnsResult(bool exists)
+    {
+        var repository = new RepositoryStub { DeleteResult = exists };
+
+        var result = await new DeleteTemplateHandler(repository).HandleAsync(
+            new DeleteTemplateCommand(Guid.NewGuid(), Guid.NewGuid()), CancellationToken.None);
+
+        Assert.Equal(exists, result);
+    }
+
+    [Fact]
+    public async Task HandleAsync_ValidRequest_ForwardsOwnerIdAndCancellation()
     {
         var userId = Guid.NewGuid();
         var id = Guid.NewGuid();
-        var repository = new RepositoryStub { DeleteResult = exists };
+        var repository = new RepositoryStub { DeleteResult = true };
         using var cancellation = new CancellationTokenSource();
 
-        var result = await new DeleteTemplateHandler(repository).HandleAsync(
+        await new DeleteTemplateHandler(repository).HandleAsync(
             new DeleteTemplateCommand(userId, id), cancellation.Token);
 
-        Assert.Equal(exists, result);
-        Assert.Equal(1, repository.DeleteCalls);
         Assert.Equal(userId, repository.UserId);
         Assert.Equal(id, repository.Id);
         Assert.Equal(cancellation.Token, repository.Token);

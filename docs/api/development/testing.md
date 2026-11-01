@@ -2,6 +2,7 @@
 
 Tests live in `src/api/TP.Api.Tests/`; use the
 [command guide](build-and-test.md) to run them.
+Apply the shared [testing principles](../../development/testing.md).
 
 - Test handlers through application-owned ports with explicit fixtures.
 - Use the shared renderer fixture for real Avalonia/resource tests; keep native

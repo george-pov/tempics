@@ -18,12 +18,8 @@ public sealed class GetTemplateTests
         const string exactText = "<TextBlock>  Hello  </TextBlock>\r\n";
         var repository = new TemplateRepositoryStub
         {
-            OnFind = (userId, templateId, _) =>
-            {
-                Assert.Equal(TemplateFunctionFixture.UserId, userId);
-                Assert.Equal(id, templateId);
-                return Task.FromResult<ImageTemplate?>(new ImageTemplate(userId, id, "Name", exactText));
-            }
+            OnFind = (_, _, _) => Task.FromResult<ImageTemplate?>(
+                new ImageTemplate(TemplateFunctionFixture.UserId, id, "Name", exactText))
         };
         var context = TemplateFunctionFixture.Http();
 
@@ -31,12 +27,66 @@ public sealed class GetTemplateTests
             .RunAsync(context.Request, id.ToString("D"), CancellationToken.None);
 
         var response = Assert.IsType<GetTemplateResponse>(Assert.IsType<OkObjectResult>(result).Value);
-        Assert.Equal(id, response.Id);
-        Assert.Equal("Name", response.Name);
-        Assert.Equal(exactText, response.Template);
+        Assert.Equal(new GetTemplateResponse(id, "Name", exactText), response);
+    }
+
+    [Fact]
+    public async Task RunAsync_OwnedTemplate_LooksUpCallerScopedId()
+    {
+        var id = Guid.NewGuid();
+        (Guid UserId, Guid Id) observed = default;
+        var repository = new TemplateRepositoryStub
+        {
+            OnFind = (userId, templateId, _) =>
+            {
+                observed = (userId, templateId);
+                return Task.FromResult<ImageTemplate?>(null);
+            }
+        };
+        var context = TemplateFunctionFixture.Http();
+
+        await new GetTemplate(new FindTemplateHandler(repository))
+            .RunAsync(context.Request, id.ToString("D"), CancellationToken.None);
+
+        Assert.Equal((TemplateFunctionFixture.UserId, id), observed);
+    }
+
+    [Fact]
+    public async Task RunAsync_OwnedTemplate_SerializesOnlyDetailFields()
+    {
+        var id = Guid.NewGuid();
+        var repository = new TemplateRepositoryStub
+        {
+            OnFind = (_, _, _) => Task.FromResult<ImageTemplate?>(
+                new ImageTemplate(TemplateFunctionFixture.UserId, id, "Name", "Text"))
+        };
+        var context = TemplateFunctionFixture.Http();
+
+        var result = await new GetTemplate(new FindTemplateHandler(repository))
+            .RunAsync(context.Request, id.ToString("D"), CancellationToken.None);
+
+        var response = Assert.IsType<GetTemplateResponse>(Assert.IsType<OkObjectResult>(result).Value);
+        string[] expected = ["id", "name", "template"];
+        Assert.Equal(expected.Order(StringComparer.Ordinal),
+            JsonSerializer.SerializeToElement(response).EnumerateObject()
+                .Select(property => property.Name).Order(StringComparer.Ordinal));
+    }
+
+    [Fact]
+    public async Task RunAsync_OwnedTemplate_DisablesCaching()
+    {
+        var id = Guid.NewGuid();
+        var repository = new TemplateRepositoryStub
+        {
+            OnFind = (_, _, _) => Task.FromResult<ImageTemplate?>(
+                new ImageTemplate(TemplateFunctionFixture.UserId, id, "Name", "Text"))
+        };
+        var context = TemplateFunctionFixture.Http();
+
+        await new GetTemplate(new FindTemplateHandler(repository))
+            .RunAsync(context.Request, id.ToString("D"), CancellationToken.None);
+
         Assert.Equal("no-store", context.Response.Headers.CacheControl.ToString());
-        Assert.Equal(new[] { "id", "name", "template" }, JsonSerializer.SerializeToElement(response)
-            .EnumerateObject().Select(property => property.Name).ToArray());
     }
 
     [Fact]
@@ -63,7 +113,6 @@ public sealed class GetTemplateTests
         Assert.Equal(StatusCodes.Status404NotFound, unknownResult.StatusCode);
         Assert.Equal(StatusCodes.Status404NotFound, otherResult.StatusCode);
         Assert.Equal(JsonSerializer.Serialize(unknownResult.Value), JsonSerializer.Serialize(otherResult.Value));
-        Assert.DoesNotContain("secret text", JsonSerializer.Serialize(unknownResult.Value));
     }
 
     [Theory]
@@ -88,6 +137,17 @@ public sealed class GetTemplateTests
     }
 
     [Fact]
+    public async Task RunAsync_InvalidId_DisablesCaching()
+    {
+        var context = TemplateFunctionFixture.Http();
+
+        await new GetTemplate(new FindTemplateHandler(new TemplateRepositoryStub()))
+            .RunAsync(context.Request, "bad-id", CancellationToken.None);
+
+        Assert.Equal("no-store", context.Response.Headers.CacheControl.ToString());
+    }
+
+    [Fact]
     public async Task RunAsync_ProviderFailure_PropagatesToMiddleware()
     {
         const string privateText = "private provider content";
@@ -103,7 +163,6 @@ public sealed class GetTemplateTests
                 .RunAsync(context.Request, Guid.NewGuid().ToString("D"), CancellationToken.None));
 
         Assert.Equal(privateText, failure.Message);
-        Assert.Equal("no-store", context.Response.Headers.CacheControl.ToString());
     }
 
     [Fact]

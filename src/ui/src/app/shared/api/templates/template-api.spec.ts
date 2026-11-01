@@ -9,8 +9,11 @@ import { TemplateApi } from './template-api';
 import type { TemplateListResponse } from './template-list-response';
 
 describe('TemplateApi', () => {
-  it('gets every list item in API order from the configured path', () => {
-    const apiBaseUrl = 'https://api.example.test/prefix/api';
+  const apiBaseUrl = 'https://api.example.test/prefix/api';
+  let http: HttpTestingController;
+  let api: TemplateApi;
+
+  beforeEach(() => {
     TestBed.configureTestingModule({
       providers: [
         provideHttpClient(),
@@ -18,17 +21,54 @@ describe('TemplateApi', () => {
         { provide: CONFIG, useValue: { ...CONFIG_FIXTURE, apiBaseUrl } },
       ],
     });
-    const http = TestBed.inject(HttpTestingController);
-    const receive = vi.fn();
-    TestBed.inject(TemplateApi).listTemplates().subscribe(receive);
+    http = TestBed.inject(HttpTestingController);
+    api = TestBed.inject(TemplateApi);
+  });
 
+  afterEach(() => http.verify());
+
+  it.each([
+    {
+      operation: 'list',
+      send: (client: TemplateApi) => client.listTemplates().subscribe(),
+      path: '/templates',
+      response: { items: [] },
+      status: 200,
+      statusText: 'OK',
+    },
+    {
+      operation: 'create',
+      send: (client: TemplateApi) =>
+        client.createTemplate({ name: 'Name', template: '<Border />' }).subscribe(),
+      path: '/templates',
+      response: { id: 'id', name: 'Name' },
+      status: 201,
+      statusText: 'Created',
+    },
+    {
+      operation: 'delete',
+      send: (client: TemplateApi) => client.deleteTemplate('id').subscribe(),
+      path: '/templates/id',
+      response: null,
+      status: 204,
+      statusText: 'No Content',
+    },
+  ])('keeps $operation requests free of browser credentials and shared keys',
+    ({ send, path, response, status, statusText }) => {
+      send(api);
+      const request = http.expectOne(`${apiBaseUrl}${path}`);
+      expect(request.request.withCredentials).toBe(false);
+      expect(request.request.headers.has('x-functions-key')).toBe(false);
+      expect(request.request.headers.has('Authorization')).toBe(false);
+      request.flush(response, { status, statusText });
+    },
+  );
+
+  it('gets every list item in API order from the configured path', () => {
+    const receive = vi.fn();
+    api.listTemplates().subscribe(receive);
     const request = http.expectOne(`${apiBaseUrl}/templates`);
     expect(request.request.method).toBe('GET');
-    expect(request.request.body).toBeNull();
-    expect(request.request.params.keys()).toEqual([]);
-    expect(request.request.withCredentials).toBe(false);
-    expect(request.request.headers.has('x-functions-key')).toBe(false);
-    expect(request.request.headers.has('Authorization')).toBe(false);
 
     const response: TemplateListResponse = {
       items: [
@@ -39,34 +79,18 @@ describe('TemplateApi', () => {
     };
     request.flush(response);
     expect(receive).toHaveBeenCalledExactlyOnceWith(response);
-    http.verify();
   });
 
-  it('posts the exact create payload once and returns a confirmed 201 body', () => {
-    const apiBaseUrl = 'https://api.example.test/prefix/api';
-    TestBed.configureTestingModule({
-      providers: [
-        provideHttpClient(),
-        provideHttpClientTesting(),
-        { provide: CONFIG, useValue: { ...CONFIG_FIXTURE, apiBaseUrl } },
-      ],
-    });
-    const http = TestBed.inject(HttpTestingController);
+  it('posts the exact create payload and returns a confirmed 201 body', () => {
     const receive = vi.fn();
     const payload: CreateTemplateRequest = {
       name: 'Event invitation',
       template: '<Border>  exact text  </Border>',
     };
-
-    TestBed.inject(TemplateApi).createTemplate(payload).subscribe(receive);
-
+    api.createTemplate(payload).subscribe(receive);
     const request = http.expectOne(`${apiBaseUrl}/templates`);
     expect(request.request.method).toBe('POST');
     expect(request.request.body).toEqual(payload);
-    expect(request.request.params.keys()).toEqual([]);
-    expect(request.request.withCredentials).toBe(false);
-    expect(request.request.headers.has('x-functions-key')).toBe(false);
-    expect(request.request.headers.has('Authorization')).toBe(false);
 
     const response: CreateTemplateResponse = {
       id: '11111111-1111-1111-1111-111111111111',
@@ -74,7 +98,6 @@ describe('TemplateApi', () => {
     };
     request.flush(response, { status: 201, statusText: 'Created' });
     expect(receive).toHaveBeenCalledExactlyOnceWith(response);
-    http.verify();
   });
 
   it.each([
@@ -83,101 +106,45 @@ describe('TemplateApi', () => {
     { description: 'a body without an id', status: 201, body: { name: 'Name' } },
     { description: 'a body without a name', status: 201, body: { id: 'id' } },
   ])('rejects $description instead of confirming creation', ({ status, body }) => {
-    TestBed.configureTestingModule({
-      providers: [
-        provideHttpClient(),
-        provideHttpClientTesting(),
-        { provide: CONFIG, useValue: CONFIG_FIXTURE },
-      ],
-    });
-    const http = TestBed.inject(HttpTestingController);
-    const receive = vi.fn();
     const reject = vi.fn();
-
-    TestBed.inject(TemplateApi)
-      .createTemplate({ name: 'Name', template: '<Border />' })
-      .subscribe({ next: receive, error: reject });
-
-    const request = http.expectOne(`${CONFIG_FIXTURE.apiBaseUrl}/templates`);
-    request.flush(body, { status, statusText: status === 201 ? 'Created' : 'OK' });
-    expect(receive).not.toHaveBeenCalled();
+    api.createTemplate({ name: 'Name', template: '<Border />' }).subscribe({ error: reject });
+    http.expectOne(`${apiBaseUrl}/templates`).flush(body, {
+      status,
+      statusText: status === 201 ? 'Created' : 'OK',
+    });
     expect(reject).toHaveBeenCalledExactlyOnceWith(expect.any(Error));
-    http.verify();
   });
 
-  it('deletes one encoded ID at the configured path and accepts the current 204 response', () => {
-    const apiBaseUrl = 'https://api.example.test/prefix/api';
-    TestBed.configureTestingModule({
-      providers: [
-        provideHttpClient(),
-        provideHttpClientTesting(),
-        { provide: CONFIG, useValue: { ...CONFIG_FIXTURE, apiBaseUrl } },
-      ],
-    });
-    const http = TestBed.inject(HttpTestingController);
+  it('deletes the encoded ID with a bodyless request and accepts 204', () => {
     const receive = vi.fn();
-    const complete = vi.fn();
     const id = '11111111-1111-1111-1111-111111111111/?name=other#fragment';
-
-    TestBed.inject(TemplateApi).deleteTemplate(id).subscribe({ next: receive, complete });
-
+    api.deleteTemplate(id).subscribe(receive);
     const request = http.expectOne(`${apiBaseUrl}/templates/${encodeURIComponent(id)}`);
     expect(request.request.method).toBe('DELETE');
     expect(request.request.body).toBeNull();
-    expect(request.request.params.keys()).toEqual([]);
-    expect(request.request.withCredentials).toBe(false);
-    expect(request.request.headers.has('x-functions-key')).toBe(false);
-    expect(request.request.headers.has('Authorization')).toBe(false);
-
     request.flush(null, { status: 204, statusText: 'No Content' });
     expect(receive).toHaveBeenCalledOnce();
-    expect(complete).toHaveBeenCalledOnce();
-    http.verify();
   });
 
   it('accepts an HTTP 200 delete response', () => {
-    TestBed.configureTestingModule({
-      providers: [
-        provideHttpClient(),
-        provideHttpClientTesting(),
-        { provide: CONFIG, useValue: CONFIG_FIXTURE },
-      ],
-    });
-    const http = TestBed.inject(HttpTestingController);
     const receive = vi.fn();
-    const reject = vi.fn();
-    const complete = vi.fn();
     const id = '11111111-1111-1111-1111-111111111111';
-
-    TestBed.inject(TemplateApi).deleteTemplate(id).subscribe({ next: receive, error: reject, complete });
-
-    const request = http.expectOne(`${CONFIG_FIXTURE.apiBaseUrl}/templates/${id}`);
-    request.flush('deleted', { status: 200, statusText: 'OK' });
+    api.deleteTemplate(id).subscribe(receive);
+    http.expectOne(`${apiBaseUrl}/templates/${id}`).flush('deleted', {
+      status: 200,
+      statusText: 'OK',
+    });
     expect(receive).toHaveBeenCalledOnce();
-    expect(reject).not.toHaveBeenCalled();
-    expect(complete).toHaveBeenCalledOnce();
-    http.verify();
   });
 
   it('passes a failed delete response to the caller', () => {
-    TestBed.configureTestingModule({
-      providers: [
-        provideHttpClient(),
-        provideHttpClientTesting(),
-        { provide: CONFIG, useValue: CONFIG_FIXTURE },
-      ],
-    });
-    const http = TestBed.inject(HttpTestingController);
-    const receive = vi.fn();
     const reject = vi.fn();
     const id = '11111111-1111-1111-1111-111111111111';
-
-    TestBed.inject(TemplateApi).deleteTemplate(id).subscribe({ next: receive, error: reject });
-
-    const request = http.expectOne(`${CONFIG_FIXTURE.apiBaseUrl}/templates/${id}`);
-    request.flush(null, { status: 503, statusText: 'Service Unavailable' });
-    expect(receive).not.toHaveBeenCalled();
+    api.deleteTemplate(id).subscribe({ error: reject });
+    http.expectOne(`${apiBaseUrl}/templates/${id}`).flush(null, {
+      status: 503,
+      statusText: 'Service Unavailable',
+    });
     expect(reject).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ status: 503 }));
-    http.verify();
   });
 });

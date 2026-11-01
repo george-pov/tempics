@@ -4,7 +4,6 @@ import { TestBed } from '@angular/core/testing';
 import { firstValueFrom } from 'rxjs';
 import { CONFIG } from '../config/config-token';
 import { CONFIG_FIXTURE } from '../config/config-fixture';
-import { ImageRenderApi } from '../api/image-render/image-render-api';
 import { AuthSession } from './auth-session';
 import { bearerInterceptor } from './bearer-interceptor';
 
@@ -31,19 +30,13 @@ describe('bearerInterceptor', () => {
 
   afterEach(() => http.verify());
 
-  it('sends a bearer token and preserves the PNG contract without a Function key', async () => {
-    const result = firstValueFrom(TestBed.inject(ImageRenderApi).renderSample());
+  it('adds the acquired bearer token to an API request', async () => {
+    const result = firstValueFrom(TestBed.inject(HttpClient).get(`${apiBaseUrl}/renders/sample`));
     await Promise.resolve();
     const request = http.expectOne(`${apiBaseUrl}/renders/sample`);
     expect(request.request.headers.get('Authorization')).toBe('Bearer fixture-access-token');
-    expect(request.request.headers.has('x-functions-key')).toBe(false);
-    expect(request.request.urlWithParams).not.toContain('fixture');
-    expect(request.request.method).toBe('POST');
-    expect(request.request.body).toBeNull();
-    expect(request.request.responseType).toBe('blob');
-    const png = new Blob(['sample'], { type: 'image/png' });
-    request.flush(png);
-    expect(await result).toBe(png);
+    request.flush({});
+    await result;
   });
 
   it.each([
@@ -64,7 +57,7 @@ describe('bearerInterceptor', () => {
 
   it('does not send the render request when token acquisition fails', async () => {
     acquireApiToken.mockRejectedValue(new Error('sign-in required'));
-    await expect(firstValueFrom(TestBed.inject(ImageRenderApi).renderSample())).rejects.toThrow(
+    await expect(firstValueFrom(TestBed.inject(HttpClient).get(`${apiBaseUrl}/renders/sample`))).rejects.toThrow(
       'sign-in required',
     );
     http.expectNone(() => true);

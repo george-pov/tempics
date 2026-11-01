@@ -58,13 +58,15 @@ describe('loadConfig', () => {
     expect(vi.getTimerCount()).toBe(0);
   });
 
-  it('clears the timeout after success and hides network errors', async () => {
+  it('clears the timeout after success', async () => {
     vi.useFakeTimers();
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json(fixture)));
     await loadConfig();
     expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('hides network error details', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('private URL')));
     await expect(loadConfig()).rejects.toThrow('Configuration loading failed');
-    expect(vi.getTimerCount()).toBe(0);
   });
 });

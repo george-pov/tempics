@@ -13,17 +13,27 @@ public sealed class FindTemplateHandlerTests
         const string text = "<Border>\r\n  own text \r\n</Border>";
         var template = new ImageTemplate(userId, id, "Name", text);
         var repository = new RepositoryStub((_, _) => template);
-        using var cancellation = new CancellationTokenSource();
 
         var result = await new FindTemplateHandler(repository).HandleAsync(
+            new FindTemplateQuery(userId, id), CancellationToken.None);
+
+        Assert.Equal(template, result);
+    }
+
+    [Fact]
+    public async Task HandleAsync_ValidRequest_PassesOwnerIdAndCancellationToRepository()
+    {
+        var userId = Guid.NewGuid();
+        var id = Guid.NewGuid();
+        var repository = new RepositoryStub((_, _) => null);
+        using var cancellation = new CancellationTokenSource();
+
+        await new FindTemplateHandler(repository).HandleAsync(
             new FindTemplateQuery(userId, id), cancellation.Token);
 
-        Assert.Same(template, result);
-        Assert.Equal(text, result!.Template);
         Assert.Equal(userId, repository.UserId);
         Assert.Equal(id, repository.Id);
         Assert.Equal(cancellation.Token, repository.Token);
-        Assert.Equal(1, repository.FindCalls);
     }
 
     [Fact]
@@ -45,7 +55,6 @@ public sealed class FindTemplateHandlerTests
 
         Assert.Null(otherResult);
         Assert.Null(absentResult);
-        Assert.Equal(2, repository.FindCalls);
     }
 
     [Theory]

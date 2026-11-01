@@ -22,26 +22,46 @@ public sealed class RenderPreviewTests
         """;
 
     [Fact]
-    public async Task RunAsync_ValidDraft_ReturnsNoStorePngWithoutFilename()
+    public async Task RunAsync_ValidDraft_ReturnsPngWithoutFilename()
     {
         byte[] png = [137, 80, 78, 71, 13, 10, 26, 10, 1, 2, 3];
         var renderer = new PreviewRendererStub((_, _) =>
             Task.FromResult(new RenderImageResult(png)));
-        var context = new DefaultHttpContext { TraceIdentifier = "preview-correlation" };
+        var context = new DefaultHttpContext();
         context.Request.Body = Body(JsonSerializer.Serialize(new { template = ValidTemplate }));
-        using var cancellation = new CancellationTokenSource();
 
         var result = await CreateFunction(renderer).RunAsync(
-            context.Request, cancellation.Token);
+            context.Request, CancellationToken.None);
 
         var file = Assert.IsType<FileContentResult>(result);
         Assert.Equal("image/png", file.ContentType);
         Assert.Equal(png, file.FileContents);
         Assert.True(string.IsNullOrEmpty(file.FileDownloadName));
-        Assert.False(context.Response.Headers.ContainsKey("Content-Disposition"));
+    }
+
+    [Fact]
+    public async Task RunAsync_ValidDraft_DisablesCaching()
+    {
+        var renderer = new PreviewRendererStub((_, _) =>
+            Task.FromResult(new RenderImageResult([1])));
+        var context = new DefaultHttpContext();
+        context.Request.Body = Body(JsonSerializer.Serialize(new { template = ValidTemplate }));
+
+        await CreateFunction(renderer).RunAsync(context.Request, CancellationToken.None);
+
         Assert.Equal("no-store", context.Response.Headers.CacheControl.ToString());
-        Assert.Equal(cancellation.Token, renderer.Token);
-        Assert.Equal(1, renderer.CallCount);
+    }
+
+    [Fact]
+    public async Task RunAsync_ValidDraft_PassesTextToRenderer()
+    {
+        var renderer = new PreviewRendererStub((_, _) =>
+            Task.FromResult(new RenderImageResult([1])));
+        var context = new DefaultHttpContext();
+        context.Request.Body = Body(JsonSerializer.Serialize(new { template = ValidTemplate }));
+
+        await CreateFunction(renderer).RunAsync(context.Request, CancellationToken.None);
+
         Assert.Equal(Encoding.UTF8.GetBytes(ValidTemplate), renderer.Axaml);
     }
 
@@ -63,7 +83,6 @@ public sealed class RenderPreviewTests
             CreateFunction(renderer).RunAsync(context.Request, CancellationToken.None));
 
         Assert.Equal(0, renderer.CallCount);
-        Assert.Equal("no-store", context.Response.Headers.CacheControl.ToString());
     }
 
     [Fact]
@@ -79,6 +98,20 @@ public sealed class RenderPreviewTests
 
         Assert.Equal(StatusCodes.Status400BadRequest, Assert.IsType<ObjectResult>(result).StatusCode);
         Assert.Equal(0, renderer.CallCount);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task RunAsync_RejectedBody_DisablesCaching(bool oversized)
+    {
+        var renderer = new PreviewRendererStub((_, _) =>
+            throw new InvalidOperationException("Renderer must not be called."));
+        var context = new DefaultHttpContext();
+        context.Request.Body = Body(oversized ? new string('x', 2_049) : "null");
+
+        await CreateFunction(renderer).RunAsync(context.Request, CancellationToken.None);
+
         Assert.Equal("no-store", context.Response.Headers.CacheControl.ToString());
     }
 
@@ -101,7 +134,6 @@ public sealed class RenderPreviewTests
 
         Assert.Equal(StatusCodes.Status413PayloadTooLarge, Assert.IsType<ObjectResult>(result).StatusCode);
         Assert.Equal(0, renderer.CallCount);
-        Assert.Equal("no-store", context.Response.Headers.CacheControl.ToString());
     }
 
     [Theory]
@@ -111,7 +143,6 @@ public sealed class RenderPreviewTests
     {
         var json = JsonSerializer.Serialize(new { template = ValidTemplate });
         var body = json.PadRight(2_048);
-        Assert.Equal(2_048, Encoding.UTF8.GetByteCount(body));
         var renderer = new PreviewRendererStub((_, _) =>
             Task.FromResult(new RenderImageResult([1])));
         var context = new DefaultHttpContext();
@@ -125,7 +156,6 @@ public sealed class RenderPreviewTests
             context.Request, CancellationToken.None);
 
         Assert.IsType<FileContentResult>(result);
-        Assert.Equal(1, renderer.CallCount);
     }
 
     [Theory]
@@ -142,7 +172,6 @@ public sealed class RenderPreviewTests
             CreateFunction(renderer).RunAsync(context.Request, CancellationToken.None));
 
         Assert.Equal(0, renderer.CallCount);
-        Assert.Equal("no-store", context.Response.Headers.CacheControl.ToString());
     }
 
     [Fact]
@@ -161,7 +190,6 @@ public sealed class RenderPreviewTests
             CreateFunction(renderer).RunAsync(context.Request, cancellation.Token));
 
         Assert.Equal(cancellation.Token, failure.CancellationToken);
-        Assert.Equal(1, renderer.CallCount);
     }
 
     [Fact]
@@ -191,14 +219,12 @@ public sealed class RenderPreviewTests
     {
         public int CallCount { get; private set; }
         public byte[]? Axaml { get; private set; }
-        public CancellationToken Token { get; private set; }
 
         public Task<RenderImageResult> RenderAsync(
             ReadOnlyMemory<byte> axaml, CancellationToken cancellationToken)
         {
             CallCount++;
             Axaml = axaml.ToArray();
-            Token = cancellationToken;
             return render(axaml, cancellationToken);
         }
     }

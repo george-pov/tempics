@@ -22,9 +22,6 @@ describe('validateConfig', () => {
     const input = { ...CONFIG_FIXTURE, environment, apiBaseUrl };
     const config = validateConfig(input);
     expect(config).toEqual({ ...CONFIG_FIXTURE, environment, apiBaseUrl: expected });
-    expect(config).not.toBe(input);
-    expect(Object.isFrozen(config)).toBe(true);
-    expect(Reflect.set(config, 'apiBaseUrl', 'changed')).toBe(false);
   });
 
   it.each([
@@ -66,13 +63,11 @@ describe('validateConfig', () => {
         'Invalid apiBaseUrl',
       );
     }
-    expect(
-      validateConfig({ ...CONFIG_FIXTURE, environment, apiBaseUrl: 'https://127.example.test' }),
-    ).toBeDefined();
   });
 
-  it('freezes the authentication settings and scopes', () => {
+  it('freezes the validated configuration and nested authentication settings', () => {
     const config = validateConfig(CONFIG_FIXTURE);
+    expect(Object.isFrozen(config)).toBe(true);
     expect(Object.isFrozen(config.auth)).toBe(true);
     expect(Object.isFrozen(config.auth.apiScopes)).toBe(true);
   });

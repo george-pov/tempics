@@ -14,37 +14,80 @@ namespace TP.Api.Tests.Functions;
 public sealed class CreateTemplateTests
 {
     [Fact]
-    public async Task RunAsync_ValidPayload_CreatesOwnedTemplateAndReturnsLocation()
+    public async Task RunAsync_ValidPayload_CreatesOwnedTemplate()
     {
         var repository = new TemplateRepositoryStub();
         ImageTemplate? saved = null;
-        CancellationToken passedToken = default;
-        repository.OnCreate = (template, token) =>
+        repository.OnCreate = (template, _) =>
         {
             saved = template;
-            passedToken = token;
             return Task.CompletedTask;
         };
         var context = TemplateFunctionFixture.Http();
         context.Request.Body = Body("{\"name\":\"  Letter  \",\"template\":\"<Text>  hi  </Text>\"}");
-        using var cancellation = new CancellationTokenSource();
 
         var result = await new CreateTemplate(new CreateTemplateHandler(repository))
-            .RunAsync(context.Request, cancellation.Token);
+            .RunAsync(context.Request, CancellationToken.None);
+
+        var response = Assert.IsType<CreateTemplateResponse>(Assert.IsType<CreatedResult>(result).Value);
+        Assert.NotNull(saved);
+        Assert.NotEqual(Guid.Empty, response.Id);
+        Assert.Equal(new ImageTemplate(TemplateFunctionFixture.UserId, response.Id,
+            "Letter", "<Text>  hi  </Text>"), saved);
+    }
+
+    [Fact]
+    public async Task RunAsync_ValidPayload_ReturnsCreationResponse()
+    {
+        var context = TemplateFunctionFixture.Http();
+        context.Request.Body = Body("{\"name\":\"Letter\",\"template\":\"<Text />\"}");
+
+        var result = await new CreateTemplate(new CreateTemplateHandler(new TemplateRepositoryStub()))
+            .RunAsync(context.Request, CancellationToken.None);
 
         var created = Assert.IsType<CreatedResult>(result);
         var response = Assert.IsType<CreateTemplateResponse>(created.Value);
-        Assert.NotNull(saved);
-        Assert.Equal(TemplateFunctionFixture.UserId, saved.UserId);
-        Assert.Equal(response.Id, saved.Id);
         Assert.NotEqual(Guid.Empty, response.Id);
         Assert.Equal("Letter", response.Name);
-        Assert.Equal("<Text>  hi  </Text>", saved.Template);
         Assert.Equal($"/api/templates/{response.Id:D}", created.Location);
+        string[] expected = ["id", "name"];
+        Assert.Equal(expected.Order(StringComparer.Ordinal),
+            JsonSerializer.SerializeToElement(response).EnumerateObject()
+                .Select(property => property.Name).Order(StringComparer.Ordinal));
+    }
+
+    [Fact]
+    public async Task RunAsync_ValidPayload_DisablesCaching()
+    {
+        var context = TemplateFunctionFixture.Http();
+        context.Request.Body = Body("{\"name\":\"Letter\",\"template\":\"A\"}");
+
+        await new CreateTemplate(new CreateTemplateHandler(new TemplateRepositoryStub()))
+            .RunAsync(context.Request, CancellationToken.None);
+
         Assert.Equal("no-store", context.Response.Headers.CacheControl.ToString());
-        Assert.Equal(cancellation.Token, passedToken);
-        Assert.Equal(new[] { "id", "name" }, JsonSerializer.SerializeToElement(response)
-            .EnumerateObject().Select(property => property.Name).ToArray());
+    }
+
+    [Fact]
+    public async Task RunAsync_ValidPayload_PassesCancellationToRepository()
+    {
+        CancellationToken observed = default;
+        var repository = new TemplateRepositoryStub
+        {
+            OnCreate = (_, token) =>
+            {
+                observed = token;
+                return Task.CompletedTask;
+            }
+        };
+        var context = TemplateFunctionFixture.Http();
+        context.Request.Body = Body("{\"name\":\"Letter\",\"template\":\"A\"}");
+        using var cancellation = new CancellationTokenSource();
+
+        await new CreateTemplate(new CreateTemplateHandler(repository))
+            .RunAsync(context.Request, cancellation.Token);
+
+        Assert.Equal(cancellation.Token, observed);
     }
 
     [Theory]
@@ -67,7 +110,6 @@ public sealed class CreateTemplateTests
                 .RunAsync(context.Request, CancellationToken.None));
 
         Assert.Equal(0, writes);
-        Assert.Equal("no-store", context.Response.Headers.CacheControl.ToString());
     }
 
     [Fact]
@@ -88,6 +130,17 @@ public sealed class CreateTemplateTests
 
         Assert.Equal(StatusCodes.Status400BadRequest, Assert.IsType<ObjectResult>(result).StatusCode);
         Assert.Equal(0, writes);
+    }
+
+    [Fact]
+    public async Task RunAsync_NullPayload_DisablesCaching()
+    {
+        var context = TemplateFunctionFixture.Http();
+        context.Request.Body = Body("null");
+
+        await new CreateTemplate(new CreateTemplateHandler(new TemplateRepositoryStub()))
+            .RunAsync(context.Request, CancellationToken.None);
+
         Assert.Equal("no-store", context.Response.Headers.CacheControl.ToString());
     }
 
@@ -112,11 +165,10 @@ public sealed class CreateTemplateTests
 
         Assert.Equal(expectedError, failure.Error);
         Assert.Equal(0, writes);
-        Assert.Equal("no-store", context.Response.Headers.CacheControl.ToString());
     }
 
     [Fact]
-    public async Task RunAsync_ExcessivePayload_RejectsWithoutWrite()
+    public async Task RunAsync_OversizedTemplate_RejectsWithoutWrite()
     {
         var repository = new TemplateRepositoryStub();
         var writes = 0;
@@ -125,22 +177,38 @@ public sealed class CreateTemplateTests
             writes++;
             return Task.CompletedTask;
         };
-        var function = new CreateTemplate(new CreateTemplateHandler(repository));
-        var longTemplateContext = TemplateFunctionFixture.Http();
-        longTemplateContext.Request.Body = Body(JsonSerializer.Serialize(new
+        var context = TemplateFunctionFixture.Http();
+        context.Request.Body = Body(JsonSerializer.Serialize(new
         {
             name = "Large",
             template = new string('x', 16_385)
         }));
-        var longBodyContext = TemplateFunctionFixture.Http();
-        longBodyContext.Request.Body = Body(new string('x', 128 * 1024 + 1));
 
-        var first = await Assert.ThrowsAsync<TemplateInputException>(() =>
-            function.RunAsync(longTemplateContext.Request, CancellationToken.None));
-        var second = await function.RunAsync(longBodyContext.Request, CancellationToken.None);
+        var failure = await Assert.ThrowsAsync<TemplateInputException>(() =>
+            new CreateTemplate(new CreateTemplateHandler(repository))
+                .RunAsync(context.Request, CancellationToken.None));
 
-        Assert.Equal(TemplateInputError.TemplateTooLarge, first.Error);
-        Assert.Equal(StatusCodes.Status413PayloadTooLarge, Assert.IsType<ObjectResult>(second).StatusCode);
+        Assert.Equal(TemplateInputError.TemplateTooLarge, failure.Error);
+        Assert.Equal(0, writes);
+    }
+
+    [Fact]
+    public async Task RunAsync_OversizedBody_RejectsWithoutWrite()
+    {
+        var repository = new TemplateRepositoryStub();
+        var writes = 0;
+        repository.OnCreate = (_, _) =>
+        {
+            writes++;
+            return Task.CompletedTask;
+        };
+        var context = TemplateFunctionFixture.Http();
+        context.Request.Body = Body(new string('x', 128 * 1024 + 1));
+
+        var result = await new CreateTemplate(new CreateTemplateHandler(repository))
+            .RunAsync(context.Request, CancellationToken.None);
+
+        Assert.Equal(StatusCodes.Status413PayloadTooLarge, Assert.IsType<ObjectResult>(result).StatusCode);
         Assert.Equal(0, writes);
     }
 
@@ -172,8 +240,6 @@ public sealed class CreateTemplateTests
                     .RunAsync(context.Request, CancellationToken.None));
             Assert.Equal(privateText, failure.Message);
         }
-
-        Assert.Equal("no-store", context.Response.Headers.CacheControl.ToString());
     }
 
     [Fact]

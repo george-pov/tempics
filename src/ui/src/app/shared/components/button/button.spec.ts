@@ -1,8 +1,6 @@
 import { Component, input, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { By } from '@angular/platform-browser';
-import { MatButton } from '@angular/material/button';
-import { Button, type ButtonAppearance, type ButtonIntent } from './button';
+import { Button } from './button';
 
 @Component({
   imports: [Button],
@@ -29,68 +27,33 @@ class FormButtonHost {
   readonly reset = vi.fn();
 }
 
-@Component({
-  imports: [Button],
-  template: `
-    <app-button [appearance]="appearance()" [intent]="intent()" [fullWidth]="fullWidth()">
-      Apply
-    </app-button>
-  `,
-})
-class AppearanceButtonHost {
-  readonly appearance = signal<ButtonAppearance>('filled');
-  readonly intent = signal<ButtonIntent>('normal');
-  readonly fullWidth = signal(false);
-}
-
 describe('Button', () => {
-  it('projects its label and bubbles native clicks', async () => {
+  it('projects its label', async () => {
     const fixture = TestBed.createComponent(ButtonHost);
     await fixture.whenStable();
     const button = fixture.nativeElement.querySelector('button') as HTMLButtonElement;
     expect(button.textContent?.trim()).toBe('Generate sample image');
+  });
+
+  it('uses a native button action without submitting its form', async () => {
+    const fixture = TestBed.createComponent(ButtonHost);
+    await fixture.whenStable();
+    const button = fixture.nativeElement.querySelector('button') as HTMLButtonElement;
     expect(button.type).toBe('button');
-    expect(fixture.debugElement.query(By.css('button')).injector.get(MatButton).appearance).toBe(
-      'filled',
-    );
-    button.focus();
-    expect(document.activeElement).toBe(button);
     button.click();
     expect(fixture.componentInstance.activate).toHaveBeenCalledOnce();
     expect(fixture.componentInstance.submit).not.toHaveBeenCalled();
+  });
 
+  it('blocks activation while disabled', async () => {
+    const fixture = TestBed.createComponent(ButtonHost);
+    await fixture.whenStable();
+    const button = fixture.nativeElement.querySelector('button') as HTMLButtonElement;
     fixture.componentInstance.disabled.set(true);
     await fixture.whenStable();
     expect(button.disabled).toBe(true);
     button.click();
-    expect(fixture.componentInstance.activate).toHaveBeenCalledOnce();
-  });
-
-  it.each(['filled', 'outlined', 'text'] as const)(
-    'passes the %s appearance through the public Material input',
-    async (appearance) => {
-      const fixture = TestBed.createComponent(AppearanceButtonHost);
-      fixture.componentInstance.appearance.set(appearance);
-      await fixture.whenStable();
-      const button = fixture.debugElement.query(By.css('button')).injector.get(MatButton);
-      expect(button.appearance).toBe(appearance);
-    },
-  );
-
-  it('supports a destructive action and full-width dialog layout', async () => {
-    const fixture = TestBed.createComponent(AppearanceButtonHost);
-    await fixture.whenStable();
-    const host = fixture.nativeElement.querySelector('app-button') as HTMLElement;
-    const button = host.querySelector('button') as HTMLButtonElement;
-    expect(button.classList.contains('is-destructive')).toBe(false);
-    expect(host.classList.contains('is-full-width')).toBe(false);
-
-    fixture.componentInstance.intent.set('destructive');
-    fixture.componentInstance.fullWidth.set(true);
-    await fixture.whenStable();
-    expect(button.classList.contains('is-destructive')).toBe(true);
-    expect(host.classList.contains('is-full-width')).toBe(true);
-    expect(button.type).toBe('button');
+    expect(fixture.componentInstance.activate).not.toHaveBeenCalled();
   });
 
   it.each(['submit', 'reset'])('supports native %s behavior', async (type) => {

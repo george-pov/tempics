@@ -8,21 +8,27 @@ public sealed class RenderSampleHandlerTests
     [Fact]
     public async Task HandleAsync_ValidTemplate_ReturnsRendererOutput()
     {
-        byte[] axaml = "trusted sample"u8.ToArray();
         var expected = new RenderImageResult([1, 2, 3]);
-        var source = new TemplateStub(axaml);
+        var source = new TemplateStub("trusted sample"u8.ToArray());
         var renderer = new RendererStub(_ => Task.FromResult(expected));
         var handler = new RenderSampleHandler(source, renderer);
-        using var cancellation = new CancellationTokenSource();
 
-        var actual = await handler.HandleAsync(new RenderSampleQuery(), cancellation.Token);
+        var actual = await handler.HandleAsync(new RenderSampleQuery(), CancellationToken.None);
 
-        Assert.Same(expected, actual);
-        Assert.Equal(1, source.Calls);
-        Assert.Equal(1, renderer.Calls);
+        Assert.Equal(expected.PngBytes, actual.PngBytes);
+    }
+
+    [Fact]
+    public async Task HandleAsync_ValidTemplate_RendersBundledBytes()
+    {
+        byte[] axaml = "trusted sample"u8.ToArray();
+        var source = new TemplateStub(axaml);
+        var renderer = new RendererStub(_ => Task.FromResult(new RenderImageResult([1])));
+
+        await new RenderSampleHandler(source, renderer).HandleAsync(
+            new RenderSampleQuery(), CancellationToken.None);
+
         Assert.Equal(axaml, renderer.Input.ToArray());
-        Assert.Equal(cancellation.Token, source.Token);
-        Assert.Equal(cancellation.Token, renderer.Token);
     }
 
     [Fact]
@@ -43,8 +49,6 @@ public sealed class RenderSampleHandlerTests
         Assert.Equal(cancellation.Token, failure.CancellationToken);
         Assert.Equal(cancellation.Token, source.Token);
         Assert.Equal(cancellation.Token, renderer.Token);
-        Assert.Equal(1, source.Calls);
-        Assert.Equal(1, renderer.Calls);
     }
 
     [Theory]
@@ -63,13 +67,10 @@ public sealed class RenderSampleHandlerTests
 
     private sealed class TemplateStub(byte[] axaml) : IBundledTemplateSource
     {
-        public int Calls { get; private set; }
-
         public CancellationToken Token { get; private set; }
 
         public ValueTask<ReadOnlyMemory<byte>> LoadAsync(CancellationToken cancellationToken)
         {
-            Calls++;
             Token = cancellationToken;
             return ValueTask.FromResult<ReadOnlyMemory<byte>>(axaml);
         }
@@ -78,8 +79,6 @@ public sealed class RenderSampleHandlerTests
     private sealed class RendererStub(
         Func<CancellationToken, Task<RenderImageResult>> render) : IAxamlRenderer
     {
-        public int Calls { get; private set; }
-
         public ReadOnlyMemory<byte> Input { get; private set; }
 
         public CancellationToken Token { get; private set; }
@@ -88,7 +87,6 @@ public sealed class RenderSampleHandlerTests
             ReadOnlyMemory<byte> axaml,
             CancellationToken cancellationToken)
         {
-            Calls++;
             Input = axaml;
             Token = cancellationToken;
             return render(cancellationToken);

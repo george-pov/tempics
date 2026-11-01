@@ -21,6 +21,10 @@ supported procedures, or applicable engineering standards except
 - [Local setup](getting-started.md)
 - [Product target](product.md)
 
+## Development
+
+- [Shared testing principles](development/testing.md)
+
 ## API
 
 - [API index](api/README.md)

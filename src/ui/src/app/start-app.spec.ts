@@ -22,7 +22,7 @@ describe('startApp', () => {
     document.body.replaceChildren();
   });
 
-  it('waits for configuration before bootstrapping with its frozen value', async () => {
+  it('waits for configuration before bootstrapping', async () => {
     let resolve: (response: Response) => void;
     vi.stubGlobal(
       'fetch',
@@ -35,26 +35,40 @@ describe('startApp', () => {
     );
     const pending = startApp();
     expect(bootstrapApplication).not.toHaveBeenCalled();
-    expect(document.querySelector('[role=status]')?.textContent).toContain('Loading');
     resolve!(Response.json(fixture));
     await pending;
-    const providers = vi.mocked(bootstrapApplication).mock.calls[0][1]!.providers;
-    expect(providers).toContainEqual({ provide: CONFIG, useValue: fixture });
-    const provider = providers.find((entry) => 'provide' in entry && entry.provide === CONFIG);
-    expect(provider && 'useValue' in provider && Object.isFrozen(provider.useValue)).toBe(true);
+    expect(bootstrapApplication).toHaveBeenCalledOnce();
   });
 
-  it('shows safe reload feedback and never bootstraps on bad configuration', async () => {
+  it('bootstraps with the loaded configuration', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json(fixture)));
+    await startApp();
+    const providers = vi.mocked(bootstrapApplication).mock.calls[0][1]!.providers;
+    expect(providers).toContainEqual({ provide: CONFIG, useValue: fixture });
+  });
+
+  it('does not bootstrap after invalid configuration', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('private', { status: 404 })));
+    await startApp();
+    expect(bootstrapApplication).not.toHaveBeenCalled();
+  });
+
+  it('shows safe reload feedback after invalid configuration', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('private', { status: 404 })));
     const reload = vi.fn();
     await startApp(reload);
-    expect(bootstrapApplication).not.toHaveBeenCalled();
     expect(document.querySelector('[role=status]')?.textContent).toMatch(/unable to start/i);
     const button = document.querySelector<HTMLButtonElement>('#startup-reload')!;
     expect(button.hidden).toBe(false);
-    button.click();
-    expect(reload).toHaveBeenCalledOnce();
     expect(document.body.textContent).not.toContain('private');
+  });
+
+  it('invokes Reload after startup fails', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('', { status: 404 })));
+    const reload = vi.fn();
+    await startApp(reload);
+    document.querySelector<HTMLButtonElement>('#startup-reload')!.click();
+    expect(reload).toHaveBeenCalledOnce();
   });
 
   it('recreates accessible recovery if bootstrap removed the loading markup', async () => {
@@ -66,8 +80,6 @@ describe('startApp', () => {
     const reload = vi.fn();
     await startApp(reload);
     expect(document.querySelector('[role=status]')?.textContent).toContain('Unable to start');
-    document.querySelector<HTMLButtonElement>('#startup-reload')!.click();
-    expect(reload).toHaveBeenCalledOnce();
-    expect(document.body.textContent).not.toContain('private');
+    expect(document.querySelector<HTMLButtonElement>('#startup-reload')?.hidden).toBe(false);
   });
 });

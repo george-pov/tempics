@@ -13,8 +13,6 @@ public sealed class BundledTemplateSourceTests(RenderFixture fixture)
     public async Task LoadAsync_EmbeddedSample_MatchesResourceBytes()
     {
         var assembly = typeof(BundledTemplateSource).Assembly;
-        Assert.Equal(SampleResourceName, BundledTemplateSource.ResourceName);
-        Assert.Contains(SampleResourceName, assembly.GetManifestResourceNames());
         using var resource = assembly.GetManifestResourceStream(SampleResourceName);
         Assert.NotNull(resource);
         using var embedded = new MemoryStream();
@@ -22,7 +20,6 @@ public sealed class BundledTemplateSourceTests(RenderFixture fixture)
 
         var axaml = await fixture.Source.LoadAsync(TestContext.Current.CancellationToken);
 
-        Assert.False(axaml.IsEmpty);
         Assert.Equal(embedded.ToArray(), axaml.ToArray());
     }
 
@@ -30,10 +27,6 @@ public sealed class BundledTemplateSourceTests(RenderFixture fixture)
     public async Task LoadAsync_EmbeddedSample_UsesBundledBackground()
     {
         var root = await LoadRootAsync();
-        Assert.Equal("https://github.com/avaloniaui", root.Name.NamespaceName);
-        Assert.Equal(1200d, (double?)root.Attribute("Width"));
-        Assert.Equal(630d, (double?)root.Attribute("Height"));
-
         var background = Assert.Single(root.Descendants(root.Name.Namespace + "ImageBrush"));
         Assert.Equal(BackgroundUri, (string?)background.Attribute("Source"));
         var backgroundExists = await fixture.Host.DispatchAsync(

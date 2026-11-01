@@ -15,19 +15,15 @@ public sealed class DeleteTemplateTests
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
-    public async Task RunAsync_EmptyBody_DeletesOwnedTemplateWithoutResponseBody(bool knownLength)
+    public async Task RunAsync_EmptyBody_PassesOwnerScopedDelete(bool knownLength)
     {
         var id = Guid.NewGuid();
-        Guid observedUser = default;
-        Guid observedId = default;
-        CancellationToken observedToken = default;
+        (Guid UserId, Guid Id, CancellationToken Token) observed = default;
         var repository = new TemplateRepositoryStub
         {
             OnDelete = (userId, templateId, token) =>
             {
-                observedUser = userId;
-                observedId = templateId;
-                observedToken = token;
+                observed = (userId, templateId, token);
                 return Task.FromResult(true);
             }
         };
@@ -39,13 +35,41 @@ public sealed class DeleteTemplateTests
         }
 
         using var cancellation = new CancellationTokenSource();
-        var result = await new DeleteTemplate(new DeleteTemplateHandler(repository))
+        await new DeleteTemplate(new DeleteTemplateHandler(repository))
             .RunAsync(context.Request, id.ToString("D"), cancellation.Token);
 
+        Assert.Equal((TemplateFunctionFixture.UserId, id, cancellation.Token), observed);
+    }
+
+    [Fact]
+    public async Task RunAsync_EmptyBody_ReturnsNoContent()
+    {
+        var repository = new TemplateRepositoryStub
+        {
+            OnDelete = (_, _, _) => Task.FromResult(true)
+        };
+        var context = TemplateFunctionFixture.Http();
+        context.Request.Body = Body("");
+
+        var result = await new DeleteTemplate(new DeleteTemplateHandler(repository))
+            .RunAsync(context.Request, Guid.NewGuid().ToString("D"), CancellationToken.None);
+
         Assert.IsType<NoContentResult>(result);
-        Assert.Equal(TemplateFunctionFixture.UserId, observedUser);
-        Assert.Equal(id, observedId);
-        Assert.Equal(cancellation.Token, observedToken);
+    }
+
+    [Fact]
+    public async Task RunAsync_EmptyBody_DisablesCaching()
+    {
+        var repository = new TemplateRepositoryStub
+        {
+            OnDelete = (_, _, _) => Task.FromResult(true)
+        };
+        var context = TemplateFunctionFixture.Http();
+        context.Request.Body = Body("");
+
+        await new DeleteTemplate(new DeleteTemplateHandler(repository))
+            .RunAsync(context.Request, Guid.NewGuid().ToString("D"), CancellationToken.None);
+
         Assert.Equal("no-store", context.Response.Headers.CacheControl.ToString());
     }
 
@@ -74,8 +98,6 @@ public sealed class DeleteTemplateTests
         Assert.Equal(StatusCodes.Status404NotFound, first.StatusCode);
         Assert.Equal(StatusCodes.Status404NotFound, second.StatusCode);
         Assert.Equal(JsonSerializer.Serialize(first.Value), JsonSerializer.Serialize(second.Value));
-        Assert.Equal("no-store", unknown.Response.Headers.CacheControl.ToString());
-        Assert.Equal("no-store", foreign.Response.Headers.CacheControl.ToString());
     }
 
     [Theory]
@@ -100,6 +122,18 @@ public sealed class DeleteTemplateTests
 
         Assert.Equal(StatusCodes.Status400BadRequest, Assert.IsType<ObjectResult>(result).StatusCode);
         Assert.Equal(0, deletes);
+    }
+
+    [Fact]
+    public async Task RunAsync_InvalidId_DisablesCaching()
+    {
+        var context = TemplateFunctionFixture.Http();
+        context.Request.Body = Body("");
+
+        await new DeleteTemplate(new DeleteTemplateHandler(new TemplateRepositoryStub()))
+            .RunAsync(context.Request, "bad-id", CancellationToken.None);
+
+        Assert.Equal("no-store", context.Response.Headers.CacheControl.ToString());
     }
 
     [Theory]
@@ -128,7 +162,6 @@ public sealed class DeleteTemplateTests
 
         Assert.Equal(StatusCodes.Status400BadRequest, Assert.IsType<ObjectResult>(result).StatusCode);
         Assert.Equal(0, deletes);
-        Assert.Equal("no-store", context.Response.Headers.CacheControl.ToString());
     }
 
     [Fact]

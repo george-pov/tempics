@@ -3,82 +3,70 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 import { ImageRenderApi } from './image-render-api';
 import { CONFIG } from '../../config/config-token';
+import { CONFIG_FIXTURE } from '../../config/config-fixture';
 
 describe('ImageRenderApi', () => {
-  it('posts a PNG request without a shared Function key', () => {
-    const config = {
-      environment: 'dev',
-      apiBaseUrl: 'https://dev.example.test/api',
-    };
+  const apiBaseUrl = 'https://api.example.test/prefix/api';
+  let http: HttpTestingController;
+  let api: ImageRenderApi;
+
+  beforeEach(() => {
     TestBed.configureTestingModule({
       providers: [
         provideHttpClient(),
         provideHttpClientTesting(),
-        { provide: CONFIG, useValue: config },
+        { provide: CONFIG, useValue: { ...CONFIG_FIXTURE, apiBaseUrl } },
       ],
     });
-    const http = TestBed.inject(HttpTestingController);
-    TestBed.inject(ImageRenderApi).renderSample().subscribe();
-
-    const request = http.expectOne(`${config.apiBaseUrl}/renders/sample`);
-    expect(request.request.method).toBe('POST');
-    expect(request.request.headers.has('x-functions-key')).toBe(false);
-    expect(request.request.headers.has('Authorization')).toBe(false);
-    expect(request.request.body).toBeNull();
-    expect(request.request.responseType).toBe('blob');
-    request.flush(new Blob(['sample'], { type: 'image/png' }));
-    http.verify();
+    http = TestBed.inject(HttpTestingController);
+    api = TestBed.inject(ImageRenderApi);
   });
 
-  it('posts to the configured path prefix and returns the PNG without credentials', () => {
-    const config = { environment: 'prod', apiBaseUrl: 'https://prod.example.test/prefix/api' };
-    TestBed.configureTestingModule({
-      providers: [
-        provideHttpClient(),
-        provideHttpClientTesting(),
-        { provide: CONFIG, useValue: config },
-      ],
-    });
-    const http = TestBed.inject(HttpTestingController);
+  afterEach(() => http.verify());
+
+  it.each([
+    {
+      operation: 'sample',
+      send: (client: ImageRenderApi) => client.renderSample().subscribe(),
+      path: '/renders/sample',
+    },
+    {
+      operation: 'preview',
+      send: (client: ImageRenderApi) => client.renderPreview('<Border />').subscribe(),
+      path: '/renders/preview',
+    },
+  ])('keeps $operation requests free of browser credentials and shared keys',
+    ({ send, path }) => {
+      send(api);
+      const request = http.expectOne(`${apiBaseUrl}${path}`);
+      expect(request.request.withCredentials).toBe(false);
+      expect(request.request.headers.has('x-functions-key')).toBe(false);
+      expect(request.request.headers.has('Authorization')).toBe(false);
+      request.flush(new Blob(['sample'], { type: 'image/png' }));
+    },
+  );
+
+  it('posts an empty sample request and returns the PNG blob', () => {
     const receive = vi.fn();
     const png = new Blob(['sample'], { type: 'image/png' });
-    TestBed.inject(ImageRenderApi).renderSample().subscribe(receive);
-
-    const request = http.expectOne(`${config.apiBaseUrl}/renders/sample`);
+    api.renderSample().subscribe(receive);
+    const request = http.expectOne(`${apiBaseUrl}/renders/sample`);
     expect(request.request.method).toBe('POST');
     expect(request.request.body).toBeNull();
     expect(request.request.responseType).toBe('blob');
-    expect(request.request.headers.has('x-functions-key')).toBe(false);
-    expect(request.request.headers.has('Authorization')).toBe(false);
-    expect(request.request.withCredentials).toBe(false);
     request.flush(png);
-    expect(receive).toHaveBeenCalledWith(png);
-    http.verify();
+    expect(receive).toHaveBeenCalledExactlyOnceWith(png);
   });
 
   it('posts the unsaved template to the preview route and returns a PNG blob', () => {
-    const config = { environment: 'dev', apiBaseUrl: 'https://dev.example.test/api' };
-    TestBed.configureTestingModule({
-      providers: [
-        provideHttpClient(),
-        provideHttpClientTesting(),
-        { provide: CONFIG, useValue: config },
-      ],
-    });
-    const http = TestBed.inject(HttpTestingController);
     const receive = vi.fn();
     const png = new Blob(['preview'], { type: 'image/png' });
-    TestBed.inject(ImageRenderApi).renderPreview('<Border />').subscribe(receive);
-
-    const request = http.expectOne(`${config.apiBaseUrl}/renders/preview`);
+    api.renderPreview('<Border />').subscribe(receive);
+    const request = http.expectOne(`${apiBaseUrl}/renders/preview`);
     expect(request.request.method).toBe('POST');
     expect(request.request.body).toEqual({ template: '<Border />' });
     expect(request.request.responseType).toBe('blob');
-    expect(request.request.headers.has('x-functions-key')).toBe(false);
-    expect(request.request.headers.has('Authorization')).toBe(false);
-    expect(request.request.withCredentials).toBe(false);
     request.flush(png);
     expect(receive).toHaveBeenCalledExactlyOnceWith(png);
-    http.verify();
   });
 });

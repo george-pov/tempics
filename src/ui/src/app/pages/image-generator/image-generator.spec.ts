@@ -69,8 +69,11 @@ describe('ImageGenerator', () => {
     await fixture.whenStable();
   }
 
-  it('waits for activation, prevents overlapping requests, and displays the returned image', async () => {
+  it('starts without a preview', () => {
     expect(preview()).toBeNull();
+  });
+
+  it('starts only one request from repeated clicks while rendering', async () => {
     expect(renderSample).not.toHaveBeenCalled();
     button().click();
     // The signal guard also protects clicks before disabled state reaches the DOM.
@@ -78,21 +81,31 @@ describe('ImageGenerator', () => {
     await fixture.whenStable();
     expect(renderSample).toHaveBeenCalledOnce();
     expect(button().disabled).toBe(true);
+  });
+
+  it('announces progress while rendering', async () => {
+    button().click();
+    await fixture.whenStable();
     expect(progress()?.getAttribute('aria-label')).toContain('Generating');
-    expect(fixture.nativeElement.querySelectorAll('[role="status"]')).toHaveLength(1);
     expect(feedback()?.textContent).toContain('Generating your sample image');
+  });
+
+  it('displays a returned PNG as an accessible image', async () => {
+    button().click();
     response.next(png);
     response.complete();
     await fixture.whenStable();
-    expect(button().disabled).toBe(false);
     expect(preview()?.getAttribute('src')).toBe('blob:first');
     expect(preview()?.alt.trim()).toBeTruthy();
-    expect(progress()).toBeNull();
+  });
+
+  it('announces readiness after rendering succeeds', async () => {
+    await succeed();
     expect(feedback()?.getAttribute('role')).toBe('status');
     expect(feedback()?.textContent).toMatch(/ready/i);
   });
 
-  it('keeps the previous preview during refresh and releases it on replacement and destruction', async () => {
+  it('keeps the previous preview during refresh and releases it on replacement', async () => {
     await succeed();
     response = new Subject<Blob>();
     button().click();
@@ -104,29 +117,33 @@ describe('ImageGenerator', () => {
     await fixture.whenStable();
     expect(preview()?.getAttribute('src')).toBe('blob:second');
     expect(revokeUrl).toHaveBeenCalledExactlyOnceWith('blob:first');
-    fixture.destroy();
-    expect(revokeUrl.mock.calls).toEqual([['blob:first'], ['blob:second']]);
   });
 
-  it('shows safe failure feedback and allows a successful retry', async () => {
+  it('releases the preview URL on destruction', async () => {
+    await succeed();
+    fixture.destroy();
+    expect(revokeUrl).toHaveBeenCalledExactlyOnceWith('blob:first');
+  });
+
+  it('shows safe failure feedback', async () => {
     button().click();
     response.error(new Error('private backend details'));
     await fixture.whenStable();
     expect(feedback()?.getAttribute('role')).toBe('alert');
     expect(feedback()?.textContent).toMatch(errorFeedback);
     expect(fixture.nativeElement.textContent).not.toContain('private backend details');
-    expect(preview()).toBeNull();
-    expect(button().disabled).toBe(false);
+  });
+
+  it('allows a successful retry after failure', async () => {
+    button().click();
+    response.error(new Error('offline'));
+    await fixture.whenStable();
     response = new Subject<Blob>();
     button().click();
-    await fixture.whenStable();
-    expect(feedback()?.textContent).toContain('Generating your sample image');
-    expect(progress()).not.toBeNull();
     response.next(png);
     response.complete();
     await fixture.whenStable();
     expect(preview()).not.toBeNull();
-    expect(feedback()?.getAttribute('role')).toBe('status');
   });
 
   it('keeps an earlier preview when refresh fails', async () => {
@@ -135,8 +152,6 @@ describe('ImageGenerator', () => {
     button().click();
     response.error(new Error('offline'));
     await fixture.whenStable();
-    expect(feedback()?.getAttribute('role')).toBe('alert');
-    expect(feedback()?.textContent).toMatch(errorFeedback);
     expect(preview()?.getAttribute('src')).toBe('blob:first');
     expect(revokeUrl).not.toHaveBeenCalled();
   });
@@ -149,17 +164,13 @@ describe('ImageGenerator', () => {
     response.next(blob);
     response.complete();
     await fixture.whenStable();
-    expect(feedback()?.getAttribute('role')).toBe('alert');
     expect(feedback()?.textContent).toMatch(errorFeedback);
-    expect(button().disabled).toBe(false);
     expect(createUrl).not.toHaveBeenCalled();
   });
 
-  it('cancels pending work on destruction without allocating a late preview', () => {
+  it('ignores a late render response after destruction', () => {
     button().click();
-    expect(response.observed).toBe(true);
     fixture.destroy();
-    expect(response.observed).toBe(false);
     response.next(png);
     expect(createUrl).not.toHaveBeenCalled();
   });

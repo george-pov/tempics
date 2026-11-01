@@ -67,21 +67,25 @@ describe('AuthSession', () => {
     expect(session.errorMessage()).not.toContain('private');
   });
 
-  it('requests the API scope at sign-in and prevents repeated clicks', async () => {
-    let complete!: () => void;
-    client.loginRedirect.mockReturnValue(new Promise<void>((resolve) => (complete = resolve)));
-    const pending = session.signIn();
+  it('requests the configured API scope at sign-in', async () => {
     await session.signIn();
     expect(client.loginRedirect).toHaveBeenCalledExactlyOnceWith({
       scopes: CONFIG_FIXTURE.auth.apiScopes,
     });
+  });
+
+  it('ignores repeated sign-in while a redirect is pending', async () => {
+    let complete!: () => void;
+    client.loginRedirect.mockReturnValue(new Promise<void>((resolve) => (complete = resolve)));
+    const pending = session.signIn();
+    await session.signIn();
+    expect(client.loginRedirect).toHaveBeenCalledOnce();
     expect(session.isBusy()).toBe(true);
-    expect(session.isSignedIn()).toBe(false);
     complete();
     await pending;
   });
 
-  it('allows retry after the sign-in window cannot be opened', async () => {
+  it('clears busy state and gives retry feedback after sign-in failure', async () => {
     client.loginRedirect.mockRejectedValue(new Error('private provider detail'));
     await session.signIn();
     expect(session.isBusy()).toBe(false);
@@ -97,9 +101,12 @@ describe('AuthSession', () => {
     });
   });
 
-  it('rejects signed-out calls and empty access tokens', async () => {
+  it('rejects token requests while signed out', async () => {
     await expect(session.acquireApiToken()).rejects.toThrow('Sign in');
     expect(client.acquireTokenSilent).not.toHaveBeenCalled();
+  });
+
+  it('rejects an empty API access token', async () => {
     active = account;
     client.acquireTokenSilent.mockResolvedValue({
       accessToken: '',
@@ -108,15 +115,13 @@ describe('AuthSession', () => {
     await expect(session.acquireApiToken()).rejects.toThrow('No API access token');
   });
 
-  it('redirects once when renewal needs interaction and does not release an unauthenticated call', async () => {
+  it('does not release a token while interactive renewal is pending', async () => {
     active = account;
     client.acquireTokenSilent.mockRejectedValue(new InteractionRequiredAuthError());
     const receive = vi.fn();
     void session.acquireApiToken().then(receive);
     await vi.waitFor(() => expect(client.acquireTokenRedirect).toHaveBeenCalledOnce());
     expect(receive).not.toHaveBeenCalled();
-    await expect(session.acquireApiToken()).rejects.toThrow('Sign in');
-    expect(client.acquireTokenRedirect).toHaveBeenCalledOnce();
   });
 
   it('passes failures through without an automatic retry or redirect loop', async () => {
