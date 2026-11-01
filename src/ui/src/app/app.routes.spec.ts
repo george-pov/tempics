@@ -118,6 +118,7 @@ describe('Component Lab route', () => {
       ['Input', 'app-input input'],
       ['Alert', 'app-alert[role="status"]'],
       ['Progress Bar', 'app-progress-bar [role="progressbar"]'],
+      ['Confirm Dialog', 'app-confirm-dialog-lab app-button button'],
     ] as const;
     for (const [label, selector] of examples) {
       const item = Array.from(
@@ -278,6 +279,59 @@ describe('Templates route', () => {
       await fixture.whenStable();
       expect(main.querySelector('app-templates')?.textContent).toContain('Launch invitation');
       expect(templatesNav?.getAttribute('aria-current')).toBe('page');
+      http.verify();
+    } finally {
+      fixture.destroy();
+    }
+  });
+
+  it('sends a selected-row delete through the authenticated shell only after confirmation', async () => {
+    const config = CONFIG_FIXTURE;
+    TestBed.configureTestingModule({
+      imports: [App],
+      providers: [...createAppConfig(config).providers, provideHttpClientTesting()],
+    });
+    await TestBed.inject(AuthSession).signIn();
+    const fixture = TestBed.createComponent(App);
+    try {
+      await fixture.whenStable();
+      await TestBed.inject(Router).navigateByUrl('/templates');
+      await fixture.whenStable();
+      const root: HTMLElement = fixture.nativeElement;
+      const http = TestBed.inject(HttpTestingController);
+      const firstId = '11111111-1111-1111-1111-111111111111';
+      const selectedId = '22222222-2222-2222-2222-222222222222';
+      http.expectOne(`${config.apiBaseUrl}/templates`).flush({
+        items: [
+          { id: firstId, name: 'Same name' },
+          { id: selectedId, name: 'Same name' },
+        ],
+      });
+      await fixture.whenStable();
+
+      const actions = root.querySelectorAll<HTMLButtonElement>('app-templates li button[aria-label="Delete Same name"]');
+      expect(actions).toHaveLength(2);
+      actions[1].click();
+      await fixture.whenStable();
+      expect(document.querySelector('mat-dialog-container')).not.toBeNull();
+      http.expectNone((request) => request.method === 'DELETE');
+
+      const confirm = Array.from(document.querySelectorAll<HTMLButtonElement>('mat-dialog-container button'))
+        .find((button) => button.textContent?.trim() === 'Delete template');
+      expect(confirm).toBeDefined();
+      confirm!.click();
+      await fixture.whenStable();
+      const deletion = await vi.waitFor(() =>
+        http.expectOne(`${config.apiBaseUrl}/templates/${selectedId}`),
+      );
+      expect(deletion.request.method).toBe('DELETE');
+      expect(deletion.request.body).toBeNull();
+      expect(deletion.request.headers.get('Authorization')).toBe('Bearer fixture-access-token');
+      deletion.flush(null, { status: 204, statusText: 'No Content' });
+      await fixture.whenStable();
+      expect(root.querySelectorAll('app-templates li')).toHaveLength(1);
+      expect(root.querySelector('app-templates .count')?.textContent?.trim()).toBe('1 template');
+      expect(root.querySelector('app-templates [role="status"]')?.textContent).toContain('Template deleted.');
       http.verify();
     } finally {
       fixture.destroy();

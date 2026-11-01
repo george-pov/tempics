@@ -37,4 +37,10 @@ export class TemplateApi {
         }),
       );
   }
+
+  deleteTemplate(id: string): Observable<void> {
+    return this.http
+      .delete(`${this.config.apiBaseUrl}/templates/${encodeURIComponent(id)}`, { responseType: 'text' })
+      .pipe(map(() => undefined));
+  }
 }

@@ -1,10 +1,10 @@
-<div class="page-heading">
-  <header class="page-title">
+<div class="app-grid app-mb-6">
+  <header class="page-title app-col-sm-8">
     <h1>Templates</h1>
     <p>View your saved image templates.</p>
   </header>
 
-  <div class="add-action">
+  <div class="add-action app-col-sm-4">
     <app-button-link route="/templates/new" appearance="filled" icon="add">
       Add Template
     </app-button-link>
@@ -12,13 +12,20 @@
 </div>
 
 @let current = state();
+@let deletion = deleteState();
 <section class="templates-panel" aria-labelledby="templates-title">
   <header class="panel-heading">
-    <h2 id="templates-title">Your templates</h2>
+    <h2 #listHeading id="templates-title" tabindex="-1">Your templates</h2>
     @if (current.kind === 'loaded') {
       <p class="count">{{ current.items.length }} {{ current.items.length === 1 ? 'template' : 'templates' }}</p>
     }
   </header>
+
+  @if (feedback(); as notice) {
+    <div class="feedback">
+      <app-alert [variant]="notice.variant">{{ notice.message }}</app-alert>
+    </div>
+  }
 
   @switch (current.kind) {
     @case ('loading') {
@@ -35,6 +42,18 @@
             <li>
               <span class="image-icon"><app-icon name="image" /></span>
               <span class="template-name">{{ template.name }}</span>
+              @if (deletion?.kind === 'deleting' && deletion.id === template.id) {
+                <span class="delete-progress" role="status">Deleting...</span>
+              }
+              <button
+                class="delete-action"
+                type="button"
+                [attr.aria-label]="'Delete ' + template.name"
+                [disabled]="deletion !== null"
+                (click)="confirmDelete(template)"
+              >
+                <app-icon name="delete" />
+              </button>
             </li>
           }
         </ul>
@@ -42,8 +61,7 @@
     }
     @case ('error') {
       <div class="status error">
-        <app-alert variant="error">Could not load your templates. Try again.</app-alert>
-        <app-button (click)="loadTemplates()">Retry</app-button>
+        <app-alert variant="error">Could not load your templates.</app-alert>
       </div>
     }
   }

@@ -4,9 +4,21 @@
     <app-button (click)="recordClick()">Generate sample image</app-button>
   </app-lab-example>
 
-  <app-lab-example titleId="button-other-appearances-title" title="Other appearances" itemsLayout="inline">
+  <app-lab-example
+    titleId="button-other-appearances-title"
+    title="Other appearances"
+    itemsLayout="inline"
+  >
     <app-button appearance="outlined" (click)="recordClick()">Outlined action</app-button>
     <app-button appearance="text" (click)="recordClick()">Text action</app-button>
+  </app-lab-example>
+
+  <app-lab-example
+    titleId="button-destructive-title"
+    title="Destructive intent"
+    itemsLayout="inline"
+  >
+    <app-button intent="destructive" (click)="recordClick()">Remove item</app-button>
   </app-lab-example>
 
   <app-lab-example titleId="button-disabled-title" title="Disabled" itemsLayout="inline">

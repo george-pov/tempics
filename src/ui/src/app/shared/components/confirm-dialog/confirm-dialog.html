@@ -1,0 +1,24 @@
+<h2 mat-dialog-title [id]="data.titleId">{{ data.options.title }}</h2>
+<mat-dialog-content>
+  <p [id]="data.messageId">{{ data.options.message }}</p>
+</mat-dialog-content>
+<mat-dialog-actions>
+  <div class="app-grid app-gap-2">
+    <div class="app-col-sm-6">
+      <app-button appearance="outlined" type="button" fullWidth class="cancel" (click)="cancel()">
+        {{ data.options.cancelLabel }}
+      </app-button>
+    </div>
+    <div class="app-col-sm-6">
+      <app-button
+        appearance="filled"
+        type="button"
+        fullWidth
+        [intent]="data.options.intent"
+        (click)="confirm()"
+      >
+        {{ data.options.confirmLabel }}
+      </app-button>
+    </div>
+  </div>
+</mat-dialog-actions>

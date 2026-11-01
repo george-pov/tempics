@@ -1,0 +1,25 @@
+@use '@angular/material' as mat;
+@use 'src/styles/variables' as *;
+
+:host(.is-full-width) {
+  display: block;
+  inline-size: 100%;
+
+  button {
+    inline-size: 100%;
+  }
+}
+
+button.is-destructive {
+  @include mat.button-overrides(
+    (
+      filled-container-color: $app-color-error-text,
+      filled-label-text-color: $app-color-white,
+    )
+  );
+}
+
+button:focus-visible {
+  outline: 3px solid var(--mat-sys-primary, #245b7a);
+  outline-offset: 3px;
+}

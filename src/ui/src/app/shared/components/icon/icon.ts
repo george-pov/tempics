@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import { MatIcon } from '@angular/material/icon';
 
-export type IconName = 'add' | 'check_circle' | 'error' | 'image';
+export type IconName = 'add' | 'check_circle' | 'delete' | 'error' | 'image';
 
 @Component({
   selector: 'app-icon',

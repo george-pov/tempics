@@ -3,18 +3,20 @@ import { MatButton } from '@angular/material/button';
 
 type ButtonType = 'button' | 'submit' | 'reset';
 export type ButtonAppearance = 'filled' | 'outlined' | 'text';
+export type ButtonIntent = 'normal' | 'destructive';
 
 @Component({
   selector: 'app-button',
   imports: [MatButton],
   templateUrl: './button.html',
-  styles: [
-    'button:focus-visible { outline: 3px solid var(--mat-sys-primary, #245b7a); outline-offset: 3px; }',
-  ],
+  styleUrl: './button.scss',
+  host: { '[class.is-full-width]': 'fullWidth()' },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class Button {
   readonly appearance = input<ButtonAppearance>('filled');
+  readonly intent = input<ButtonIntent>('normal');
   readonly type = input<ButtonType>('button');
   readonly disabled = input(false, { transform: booleanAttribute });
+  readonly fullWidth = input(false, { transform: booleanAttribute });
 }

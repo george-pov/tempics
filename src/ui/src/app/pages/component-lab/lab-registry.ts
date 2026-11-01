@@ -5,6 +5,7 @@ import { IconLab } from './icon-lab/icon-lab';
 import { InputLab } from './input-lab/input-lab';
 import { AlertLab } from './alert-lab/alert-lab';
 import { ProgressBarLab } from './progress-bar-lab/progress-bar-lab';
+import { ConfirmDialogLab } from './confirm-dialog-lab/confirm-dialog-lab';
 
 export interface ComponentLabItem {
   readonly label: string;
@@ -18,4 +19,5 @@ export const componentLabItems: readonly ComponentLabItem[] = [
   { label: 'Input', component: InputLab },
   { label: 'Alert', component: AlertLab },
   { label: 'Progress Bar', component: ProgressBarLab },
+  { label: 'Confirm Dialog', component: ConfirmDialogLab },
 ];

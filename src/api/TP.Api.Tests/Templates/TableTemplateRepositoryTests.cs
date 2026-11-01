@@ -220,6 +220,20 @@ public sealed class TableTemplateRepositoryTests
             new TableTemplateRepository(table).FindAsync(UserId, Guid.NewGuid(), CancellationToken.None));
     }
 
+    [Theory]
+    [InlineData("EntityNotFound")]
+    [InlineData("ResourceNotFound")]
+    public async Task FindAsync_MissingEntity_ReturnsNull(string errorCode)
+    {
+        var table = new TableClientStub
+        {
+            ReadFailure = new RequestFailedException(404, "Missing entity", errorCode, null)
+        };
+
+        Assert.Null(await new TableTemplateRepository(table).FindAsync(
+            UserId, Guid.NewGuid(), CancellationToken.None));
+    }
+
     [Fact]
     public async Task FindAsync_CredentialFailure_ThrowsSafeUnavailableError()
     {
@@ -251,8 +265,9 @@ public sealed class TableTemplateRepositoryTests
         Assert.True(updated);
         Assert.Equal(UserId.ToString("D"), table.ReadPartition);
         Assert.Equal(id.ToString("D"), table.ReadRow);
-        Assert.Equal(nameof(TemplateEntity.UserId),
-            Assert.Single(Assert.IsType<string[]>(table.ReadSelect)));
+        Assert.Equal(
+            [nameof(TemplateEntity.PartitionKey), nameof(TemplateEntity.RowKey), nameof(TemplateEntity.UserId)],
+            Assert.IsType<string[]>(table.ReadSelect));
         Assert.Equal(cancellation.Token, table.ReadToken);
         Assert.Equal(1, table.UpdateCalls);
         Assert.Equal(ETag.All, table.UpdateIfMatch);
@@ -311,13 +326,15 @@ public sealed class TableTemplateRepositoryTests
         Assert.Equal(0, table.UpdateCalls);
     }
 
-    [Fact]
-    public async Task UpdateAsync_EntityRemovedAfterRead_ReturnsMissingWithoutUpsert()
+    [Theory]
+    [InlineData("EntityNotFound")]
+    [InlineData("ResourceNotFound")]
+    public async Task UpdateAsync_EntityRemovedAfterRead_ReturnsMissingWithoutUpsert(string errorCode)
     {
         var id = Guid.NewGuid();
         var table = new TableClientStub
         {
-            UpdateFailure = new RequestFailedException(404, "Gone", "EntityNotFound", null)
+            UpdateFailure = new RequestFailedException(404, "Gone", errorCode, null)
         };
         table.Rows.Add(Entity(UserId, id, "Before", "before"));
 
@@ -394,6 +411,31 @@ public sealed class TableTemplateRepositoryTests
         Assert.Equal(0, table.DeleteCalls);
     }
 
+    [Theory]
+    [InlineData(true, "EntityNotFound")]
+    [InlineData(true, "ResourceNotFound")]
+    [InlineData(false, "EntityNotFound")]
+    [InlineData(false, "ResourceNotFound")]
+    public async Task MutationAsync_MissingOwnerRead_ReturnsMissingWithoutWrite(
+        bool update, string errorCode)
+    {
+        var table = new TableClientStub
+        {
+            ReadFailure = new RequestFailedException(404, "Missing entity", errorCode, null)
+        };
+        var repository = new TableTemplateRepository(table);
+        var id = Guid.NewGuid();
+
+        var found = update
+            ? await repository.UpdateAsync(
+                new ImageTemplate(UserId, id, "After", "after"), CancellationToken.None)
+            : await repository.DeleteAsync(UserId, id, CancellationToken.None);
+
+        Assert.False(found);
+        Assert.Equal(0, table.UpdateCalls);
+        Assert.Equal(0, table.DeleteCalls);
+    }
+
     [Fact]
     public async Task DeleteAsync_ExistingOwner_RemovesOnlyThatRow()
     {
@@ -409,8 +451,9 @@ public sealed class TableTemplateRepositoryTests
         Assert.True(deleted);
         Assert.Equal(UserId.ToString("D"), table.ReadPartition);
         Assert.Equal(id.ToString("D"), table.ReadRow);
-        Assert.Equal(nameof(TemplateEntity.UserId),
-            Assert.Single(Assert.IsType<string[]>(table.ReadSelect)));
+        Assert.Equal(
+            [nameof(TemplateEntity.PartitionKey), nameof(TemplateEntity.RowKey), nameof(TemplateEntity.UserId)],
+            Assert.IsType<string[]>(table.ReadSelect));
         Assert.Equal(1, table.DeleteCalls);
         Assert.Equal(UserId.ToString("D"), table.DeletePartition);
         Assert.Equal(id.ToString("D"), table.DeleteRow);
@@ -462,13 +505,15 @@ public sealed class TableTemplateRepositoryTests
         Assert.Equal(0, table.DeleteCalls);
     }
 
-    [Fact]
-    public async Task DeleteAsync_EntityRemovedAfterRead_ReturnsSuccess()
+    [Theory]
+    [InlineData("EntityNotFound")]
+    [InlineData("ResourceNotFound")]
+    public async Task DeleteAsync_EntityRemovedAfterRead_ReturnsSuccess(string errorCode)
     {
         var id = Guid.NewGuid();
         var table = new TableClientStub
         {
-            DeleteFailure = new RequestFailedException(404, "Gone", "EntityNotFound", null)
+            DeleteFailure = new RequestFailedException(404, "Gone", errorCode, null)
         };
         table.Rows.Add(Entity(UserId, id, "Mine", "mine"));
 
@@ -648,10 +693,31 @@ public sealed class TableTemplateRepositoryTests
 
             var entity = Rows.FirstOrDefault(entity =>
                 !ApplyReadKeys || (entity.PartitionKey == partitionKey && entity.RowKey == rowKey));
-            return entity is null
-                ? Task.FromException<Response<T>>(
-                    new RequestFailedException(404, "Missing", "EntityNotFound", null))
-                : Task.FromResult(Response.FromValue((T)(ITableEntity)entity, null!));
+            if (entity is null)
+            {
+                return Task.FromException<Response<T>>(
+                    new RequestFailedException(404, "Missing", "EntityNotFound", null));
+            }
+
+            // The SDK materializes only selected entity properties. Preserve response metadata.
+            var selected = ReadSelect is null
+                ? entity
+                : new TemplateEntity
+                {
+                    PartitionKey = ReadSelect.Contains(nameof(TemplateEntity.PartitionKey))
+                        ? entity.PartitionKey : string.Empty,
+                    RowKey = ReadSelect.Contains(nameof(TemplateEntity.RowKey))
+                        ? entity.RowKey : string.Empty,
+                    UserId = ReadSelect.Contains(nameof(TemplateEntity.UserId))
+                        ? entity.UserId : string.Empty,
+                    Name = ReadSelect.Contains(nameof(TemplateEntity.Name))
+                        ? entity.Name : string.Empty,
+                    Template = ReadSelect.Contains(nameof(TemplateEntity.Template))
+                        ? entity.Template : string.Empty,
+                    ETag = entity.ETag,
+                    Timestamp = entity.Timestamp
+                };
+            return Task.FromResult(Response.FromValue((T)(ITableEntity)selected, null!));
         }
 
         public override Task<Response> UpdateEntityAsync<T>(

@@ -1,0 +1,11 @@
+<app-lab-page titleId="confirm-dialog-lab-title" title="Confirm Dialog">
+  <app-lab-example titleId="confirm-dialog-normal-title" title="Normal intent">
+    <app-button (click)="openNormal()">Open normal confirmation</app-button>
+  </app-lab-example>
+
+  <app-lab-example titleId="confirm-dialog-destructive-title" title="Destructive intent">
+    <app-button (click)="openDestructive()">Open delete confirmation</app-button>
+  </app-lab-example>
+
+  <p role="status" aria-live="polite" aria-atomic="true">{{ result() }}</p>
+</app-lab-page>

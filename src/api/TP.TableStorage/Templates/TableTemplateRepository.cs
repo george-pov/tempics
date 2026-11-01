@@ -79,8 +79,7 @@ public sealed class TableTemplateRepository(TableClient tableClient) : ITemplate
                 partition, row, cancellationToken: cancellationToken);
             return MapTemplate(response.Value, userId, id);
         }
-        catch (RequestFailedException exception) when (
-            exception.Status == 404 && exception.ErrorCode == "EntityNotFound")
+        catch (RequestFailedException exception) when (IsMissingEntity(exception))
         {
             return null;
         }
@@ -113,8 +112,7 @@ public sealed class TableTemplateRepository(TableClient tableClient) : ITemplate
                 cancellationToken);
             return true;
         }
-        catch (RequestFailedException exception) when (
-            exception.Status == 404 && exception.ErrorCode == "EntityNotFound")
+        catch (RequestFailedException exception) when (IsMissingEntity(exception))
         {
             return false;
         }
@@ -145,8 +143,7 @@ public sealed class TableTemplateRepository(TableClient tableClient) : ITemplate
                 partition, row, cancellationToken: cancellationToken);
             return true;
         }
-        catch (RequestFailedException exception) when (
-            exception.Status == 404 && exception.ErrorCode == "EntityNotFound")
+        catch (RequestFailedException exception) when (IsMissingEntity(exception))
         {
             return true;
         }
@@ -163,15 +160,16 @@ public sealed class TableTemplateRepository(TableClient tableClient) : ITemplate
         try
         {
             var response = await _tableClient.GetEntityAsync<TemplateEntity>(
-                partition, row, select: [nameof(TemplateEntity.UserId)],
+                partition, row,
+                select: [nameof(TemplateEntity.PartitionKey), nameof(TemplateEntity.RowKey),
+                    nameof(TemplateEntity.UserId)],
                 cancellationToken: cancellationToken);
             var entity = response.Value;
             ValidateOwnedEntity(entity, partition, row);
 
             return entity;
         }
-        catch (RequestFailedException exception) when (
-            exception.Status == 404 && exception.ErrorCode == "EntityNotFound")
+        catch (RequestFailedException exception) when (IsMissingEntity(exception))
         {
             return null;
         }
@@ -190,6 +188,10 @@ public sealed class TableTemplateRepository(TableClient tableClient) : ITemplate
             throw new TemplateUnavailableException();
         }
     }
+
+    private static bool IsMissingEntity(RequestFailedException exception) =>
+        exception.Status == 404 &&
+        (exception.ErrorCode is "EntityNotFound" or "ResourceNotFound");
 
     private static ImageTemplate MapTemplate(TemplateEntity entity, Guid userId, Guid id)
     {

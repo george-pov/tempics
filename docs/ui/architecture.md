@@ -27,8 +27,16 @@ owns navigation, the main landmark, page spacing, and route focus.
 - `shared/config/`: startup configuration.
 - `shared/components/`: reusable controls.
 
-`pages/templates/` owns the list request's loading, loaded, and error states,
-including retry. `pages/template-create/` owns the opening draft, field
+`pages/templates/` owns the list request's loading, loaded, and error states.
+A failed list load shows a generic error message without a retry action. A new
+list load or completed deletion cancels an older list request so its response
+cannot replace the current state. A row's Delete button opens a plain-text
+confirmation. Only an affirmative result sends that row's ID through the
+authenticated DELETE client. A successful HTTP response removes the row and
+updates the count; the current API returns `204`. Any DELETE error, including
+`404`, leaves the row in place with a generic error message and no list reload.
+
+`pages/template-create/` owns the opening draft, field
 validation, Cancel reset, create request state, and an optional unsaved preview.
 It sends a trimmed name and the exact AXAML text through
 `shared/api/templates/`. A confirmed `201` returns to `/templates`, where the
@@ -48,14 +56,18 @@ independent and permits up to 16,384 UTF-16 code units.
 
 [Shared components](../../src/ui/src/app/shared/components/) keep Material UI
 dependencies behind app-owned contracts. `Button` is a native action with filled,
-outlined, or text appearance; `ButtonLink` is a routed anchor with the same
-appearances and an optional decorative local icon. `Input` binds a typed string
+outlined, or text appearance, a destructive filled style, and full-width sizing.
+`ButtonLink` is a routed anchor with the same appearances and an optional
+decorative local icon. `Input` binds a typed string
 form control to a labeled single-line or multiline field. Its caller owns
 validation and supplies hint or error text.
 
 `Alert` presents success or error text with the corresponding status or alert
 role. `ProgressBar` shows labeled indeterminate work with one polite pending
 announcement. Pages own request state and any preview object URL lifetime.
+`ConfirmDialogService` opens an app-owned confirmation with configurable plain
+text and normal or destructive intent. Cancel, Escape, backdrop dismissal, and
+navigation do not confirm an action. The caller owns any resulting API request.
 
 ## Startup And Requests
 

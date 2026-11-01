@@ -104,4 +104,80 @@ describe('TemplateApi', () => {
     expect(reject).toHaveBeenCalledExactlyOnceWith(expect.any(Error));
     http.verify();
   });
+
+  it('deletes one encoded ID at the configured path and accepts the current 204 response', () => {
+    const apiBaseUrl = 'https://api.example.test/prefix/api';
+    TestBed.configureTestingModule({
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        { provide: CONFIG, useValue: { ...CONFIG_FIXTURE, apiBaseUrl } },
+      ],
+    });
+    const http = TestBed.inject(HttpTestingController);
+    const receive = vi.fn();
+    const complete = vi.fn();
+    const id = '11111111-1111-1111-1111-111111111111/?name=other#fragment';
+
+    TestBed.inject(TemplateApi).deleteTemplate(id).subscribe({ next: receive, complete });
+
+    const request = http.expectOne(`${apiBaseUrl}/templates/${encodeURIComponent(id)}`);
+    expect(request.request.method).toBe('DELETE');
+    expect(request.request.body).toBeNull();
+    expect(request.request.params.keys()).toEqual([]);
+    expect(request.request.withCredentials).toBe(false);
+    expect(request.request.headers.has('x-functions-key')).toBe(false);
+    expect(request.request.headers.has('Authorization')).toBe(false);
+
+    request.flush(null, { status: 204, statusText: 'No Content' });
+    expect(receive).toHaveBeenCalledOnce();
+    expect(complete).toHaveBeenCalledOnce();
+    http.verify();
+  });
+
+  it('accepts an HTTP 200 delete response', () => {
+    TestBed.configureTestingModule({
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        { provide: CONFIG, useValue: CONFIG_FIXTURE },
+      ],
+    });
+    const http = TestBed.inject(HttpTestingController);
+    const receive = vi.fn();
+    const reject = vi.fn();
+    const complete = vi.fn();
+    const id = '11111111-1111-1111-1111-111111111111';
+
+    TestBed.inject(TemplateApi).deleteTemplate(id).subscribe({ next: receive, error: reject, complete });
+
+    const request = http.expectOne(`${CONFIG_FIXTURE.apiBaseUrl}/templates/${id}`);
+    request.flush('deleted', { status: 200, statusText: 'OK' });
+    expect(receive).toHaveBeenCalledOnce();
+    expect(reject).not.toHaveBeenCalled();
+    expect(complete).toHaveBeenCalledOnce();
+    http.verify();
+  });
+
+  it('passes a failed delete response to the caller', () => {
+    TestBed.configureTestingModule({
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        { provide: CONFIG, useValue: CONFIG_FIXTURE },
+      ],
+    });
+    const http = TestBed.inject(HttpTestingController);
+    const receive = vi.fn();
+    const reject = vi.fn();
+    const id = '11111111-1111-1111-1111-111111111111';
+
+    TestBed.inject(TemplateApi).deleteTemplate(id).subscribe({ next: receive, error: reject });
+
+    const request = http.expectOne(`${CONFIG_FIXTURE.apiBaseUrl}/templates/${id}`);
+    request.flush(null, { status: 503, statusText: 'Service Unavailable' });
+    expect(receive).not.toHaveBeenCalled();
+    expect(reject).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ status: 503 }));
+    http.verify();
+  });
 });

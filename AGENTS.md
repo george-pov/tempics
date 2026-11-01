@@ -174,6 +174,17 @@ commands that create artifacts.
 
 - Preserve user changes and do not revert unrelated modified files.
 - Prefer small end-to-end slices that keep the solution buildable.
+- Start with the simplest implementation that meets the current requirements
+  and contracts. Reuse existing patterns and keep state with the feature that
+  owns it.
+- Add abstractions, extra state, defensive checks, and recovery flows only for
+  a current requirement or a demonstrated failure. Defer optional features and
+  refinements until needed. Keep required security, accessibility, and data
+  safety intact.
+- Keep simplification within documented architecture, ownership boundaries,
+  and integration contracts. If a simpler approach changes a foundational
+  design decision, record and review it before implementation. Do not let code
+  silently drift from the agreed design.
 - Do not perform broad rewrites unless the user explicitly asks for them.
 - Verify behavior from current source before describing it as implemented or
   tested.

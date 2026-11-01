@@ -2,7 +2,7 @@ import { Component, input, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { MatButton } from '@angular/material/button';
-import { Button, type ButtonAppearance } from './button';
+import { Button, type ButtonAppearance, type ButtonIntent } from './button';
 
 @Component({
   imports: [Button],
@@ -31,10 +31,16 @@ class FormButtonHost {
 
 @Component({
   imports: [Button],
-  template: `<app-button [appearance]="appearance()">Apply</app-button>`,
+  template: `
+    <app-button [appearance]="appearance()" [intent]="intent()" [fullWidth]="fullWidth()">
+      Apply
+    </app-button>
+  `,
 })
 class AppearanceButtonHost {
   readonly appearance = signal<ButtonAppearance>('filled');
+  readonly intent = signal<ButtonIntent>('normal');
+  readonly fullWidth = signal(false);
 }
 
 describe('Button', () => {
@@ -70,6 +76,22 @@ describe('Button', () => {
       expect(button.appearance).toBe(appearance);
     },
   );
+
+  it('supports a destructive action and full-width dialog layout', async () => {
+    const fixture = TestBed.createComponent(AppearanceButtonHost);
+    await fixture.whenStable();
+    const host = fixture.nativeElement.querySelector('app-button') as HTMLElement;
+    const button = host.querySelector('button') as HTMLButtonElement;
+    expect(button.classList.contains('is-destructive')).toBe(false);
+    expect(host.classList.contains('is-full-width')).toBe(false);
+
+    fixture.componentInstance.intent.set('destructive');
+    fixture.componentInstance.fullWidth.set(true);
+    await fixture.whenStable();
+    expect(button.classList.contains('is-destructive')).toBe(true);
+    expect(host.classList.contains('is-full-width')).toBe(true);
+    expect(button.type).toBe('button');
+  });
 
   it.each(['submit', 'reset'])('supports native %s behavior', async (type) => {
     const fixture = TestBed.createComponent(FormButtonHost);

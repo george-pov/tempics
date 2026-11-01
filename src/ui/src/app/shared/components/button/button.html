@@ -1,1 +1,8 @@
-<button [matButton]="appearance()" [type]="type()" [disabled]="disabled()"><ng-content /></button>
+<button
+  [matButton]="appearance()"
+  [type]="type()"
+  [disabled]="disabled()"
+  [class.is-destructive]="intent() === 'destructive'"
+>
+  <ng-content />
+</button>

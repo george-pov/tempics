@@ -31,3 +31,6 @@ _ReSharper*/
 .idea/
 #Nuget packages folder
 packages/
+/src/ui/.playwright-cli
+/.playwright-cli/
+/output/

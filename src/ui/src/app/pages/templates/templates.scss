@@ -3,24 +3,17 @@
 
 @include app.page-host;
 
-.page-heading {
-  @include app.split-header(flex-start, $app-space-6);
-}
-
 .page-title {
   @include app.page-title-header;
 }
 
 .add-action {
-  display: flex;
-  align-items: flex-end;
-  max-inline-size: 100%;
+  justify-self: end;
+  align-self: end;
 }
 
 .templates-panel {
   @include app.panel(0, $app-color-surface);
-
-  overflow: hidden;
 }
 
 .panel-heading {
@@ -35,6 +28,11 @@
   h2,
   p {
     margin: 0;
+  }
+
+  h2:focus {
+    outline: 3px solid $app-color-action-primary;
+    outline-offset: 3px;
   }
 }
 
@@ -51,7 +49,6 @@
     display: flex;
     align-items: center;
     gap: $app-space-6;
-    min-inline-size: 0;
     padding: $app-space-6;
 
     + li {
@@ -73,7 +70,45 @@
 
 .template-name {
   min-inline-size: 0;
+  flex: 1 1 auto;
   overflow-wrap: anywhere;
+}
+
+.delete-progress {
+  color: $app-color-muted;
+  white-space: nowrap;
+}
+
+.delete-action {
+  display: inline-grid;
+  flex: 0 0 auto;
+  place-items: center;
+  inline-size: 2.75rem;
+  block-size: 2.75rem;
+  border: 0;
+  border-radius: $app-radius-md;
+  background: transparent;
+  color: $app-color-error-text;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: $app-color-error-surface;
+  }
+
+  &:focus-visible {
+    outline: 3px solid $app-color-action-primary;
+    outline-offset: 2px;
+  }
+
+  &:disabled {
+    color: $app-color-muted;
+    cursor: default;
+  }
+}
+
+.feedback {
+  display: flex;
+  padding: $app-space-4 $app-space-6 0;
 }
 
 .status {
@@ -83,17 +118,4 @@
 
 .error {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: $app-space-4;
-}
-
-@media (max-width: #{$app-breakpoint-sm - 1px}) {
-  .page-heading {
-    flex-direction: column;
-  }
-
-  .add-action {
-    align-items: flex-start;
-  }
 }
