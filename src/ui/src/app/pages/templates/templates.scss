@@ -79,6 +79,7 @@
   white-space: nowrap;
 }
 
+.edit-action,
 .delete-action {
   display: inline-grid;
   flex: 0 0 auto;
@@ -88,16 +89,27 @@
   border: 0;
   border-radius: $app-radius-md;
   background: transparent;
-  color: $app-color-error-text;
   cursor: pointer;
-
-  &:hover:not(:disabled) {
-    background: $app-color-error-surface;
-  }
 
   &:focus-visible {
     outline: 3px solid $app-color-action-primary;
     outline-offset: 2px;
+  }
+}
+
+.edit-action {
+  color: $app-color-action-primary;
+
+  &:hover {
+    background: $app-color-surface-hover;
+  }
+}
+
+.delete-action {
+  color: $app-color-error-text;
+
+  &:hover:not(:disabled) {
+    background: $app-color-error-surface;
   }
 
   &:disabled {

@@ -1,35 +1,58 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, computed, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  DestroyRef,
+  computed,
+  inject,
+  signal,
+} from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormControl } from '@angular/forms';
-import { Router } from '@angular/router';
-import { finalize, startWith, Subscription } from 'rxjs';
+import { ActivatedRoute, Router } from '@angular/router';
+import { finalize, startWith, Subscription, type Observable } from 'rxjs';
 import { ImageRenderApi } from '../../shared/api/image-render/image-render-api';
 import { TemplateApi } from '../../shared/api/templates/template-api';
+import type { TemplateDetail } from '../../shared/api/templates/template-detail';
 import { Alert } from '../../shared/components/alert/alert';
 import { Button } from '../../shared/components/button/button';
 import { ButtonLink } from '../../shared/components/button-link/button-link';
 import { Input } from '../../shared/components/input/input';
 import { ProgressBar } from '../../shared/components/progress-bar/progress-bar';
-import { INITIAL_TEMPLATE_DRAFT, type TemplateCreateDraft } from './template-create-draft';
+import { INITIAL_TEMPLATE_DRAFT } from './template-editor-draft';
+
+type TemplateEditorState =
+  | { readonly kind: 'loading' }
+  | { readonly kind: 'ready'; readonly detail: TemplateDetail }
+  | { readonly kind: 'error' };
 
 @Component({
-  selector: 'app-template-create',
+  selector: 'app-template-editor',
   imports: [Alert, Button, ButtonLink, Input, ProgressBar],
-  templateUrl: './template-create.html',
-  styleUrl: './template-create.scss',
+  templateUrl: './template-editor.html',
+  styleUrl: './template-editor.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class TemplateCreate {
+export class TemplateEditor {
   private readonly api = inject(TemplateApi);
   private readonly imageRenderApi = inject(ImageRenderApi);
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly route = inject(ActivatedRoute);
+  private readonly routeId = signal(this.route.snapshot.paramMap.get('id'));
+  private detailSubscription: Subscription | undefined;
+  private saveSubscription: Subscription | undefined;
   private previewSubscription: Subscription | undefined;
   private previewRequestId = 0;
+  private routeGeneration = 0;
 
-  readonly openingDraft: TemplateCreateDraft = INITIAL_TEMPLATE_DRAFT;
-  readonly nameControl = new FormControl(this.openingDraft.name, { nonNullable: true });
-  readonly templateControl = new FormControl(this.openingDraft.template, { nonNullable: true });
+  protected readonly isEditing = computed(() => this.routeId() !== null);
+  readonly openingDraft = INITIAL_TEMPLATE_DRAFT;
+  readonly nameControl = new FormControl(this.isEditing() ? '' : this.openingDraft.name, {
+    nonNullable: true,
+  });
+  readonly templateControl = new FormControl(this.isEditing() ? '' : this.openingDraft.template, {
+    nonNullable: true,
+  });
 
   private readonly nameValue = toSignal(
     this.nameControl.valueChanges.pipe(startWith(this.nameControl.value)),
@@ -40,6 +63,9 @@ export class TemplateCreate {
     { initialValue: this.templateControl.value },
   );
 
+  protected readonly state = signal<TemplateEditorState>(
+    this.isEditing() ? { kind: 'loading' } : { kind: 'ready', detail: this.openingDraft },
+  );
   protected readonly isSaving = signal(false);
   private readonly saveConfirmed = signal(false);
   protected readonly saveErrorMessage = signal('');
@@ -58,11 +84,13 @@ export class TemplateCreate {
     if (template.length > 16_384) return 'Max 16,384 characters.';
     return '';
   });
-  protected readonly hasChanges = computed(
-    () =>
-      this.nameValue() !== this.openingDraft.name ||
-      this.templateValue() !== this.openingDraft.template,
-  );
+  protected readonly hasChanges = computed(() => {
+    const current = this.state();
+    return (
+      current.kind === 'ready' &&
+      (this.nameValue() !== current.detail.name || this.templateValue() !== current.detail.template)
+    );
+  });
   protected readonly canCancel = computed(
     () => this.hasChanges() && !this.isSaving() && !this.saveConfirmed(),
   );
@@ -75,6 +103,7 @@ export class TemplateCreate {
       !this.saveConfirmed(),
   );
   protected readonly canPreview = computed(() => {
+    if (this.state().kind !== 'ready') return false;
     const template = this.templateValue();
     return (
       !!template.trim() &&
@@ -88,6 +117,52 @@ export class TemplateCreate {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(() => this.clearPreview());
     this.destroyRef.onDestroy(() => this.clearPreview());
+    this.route.paramMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((params) => {
+      const id = params.get('id');
+      if (id === this.routeId()) return;
+      this.routeId.set(id);
+      this.resetForRoute();
+    });
+    if (this.isEditing()) this.loadTemplate();
+  }
+
+  private loadTemplate(): void {
+    const id = this.routeId();
+    if (id === null) return;
+
+    this.detailSubscription = this.api
+      .getTemplate(id)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (detail) => {
+          this.nameControl.setValue(detail.name);
+          this.templateControl.setValue(detail.template);
+          this.nameControl.markAsPristine();
+          this.templateControl.markAsPristine();
+          this.state.set({ kind: 'ready', detail });
+        },
+        error: () => this.state.set({ kind: 'error' }),
+      });
+  }
+
+  private resetForRoute(): void {
+    this.routeGeneration++;
+    this.detailSubscription?.unsubscribe();
+    this.saveSubscription?.unsubscribe();
+    this.clearPreview();
+    this.saveConfirmed.set(false);
+    this.isSaving.set(false);
+    this.saveErrorMessage.set('');
+    const id = this.routeId();
+    const detail = id === null ? this.openingDraft : null;
+    this.state.set(detail ? { kind: 'ready', detail } : { kind: 'loading' });
+    this.nameControl.setValue(detail?.name ?? '');
+    this.templateControl.setValue(detail?.template ?? '');
+    this.nameControl.markAsPristine();
+    this.nameControl.markAsUntouched();
+    this.templateControl.markAsPristine();
+    this.templateControl.markAsUntouched();
+    if (id !== null) this.loadTemplate();
   }
 
   protected preview(): void {
@@ -110,7 +185,8 @@ export class TemplateCreate {
       )
       .subscribe({
         next: (blob) => {
-          if (this.previewRequestId !== requestId || this.templateControl.value !== template) return;
+          if (this.previewRequestId !== requestId || this.templateControl.value !== template)
+            return;
           if (!(blob instanceof Blob) || blob.type !== 'image/png' || blob.size === 0) {
             this.showPreviewError();
             return;
@@ -135,11 +211,15 @@ export class TemplateCreate {
 
     this.isSaving.set(true);
     this.saveErrorMessage.set('');
-    this.api
-      .createTemplate({
-        name: this.nameControl.value.trim(),
-        template: this.templateControl.value,
-      })
+    const draft = {
+      name: this.nameControl.value.trim(),
+      template: this.templateControl.value,
+    };
+    const id = this.routeId();
+    const generation = this.routeGeneration;
+    const request: Observable<unknown> =
+      id === null ? this.api.createTemplate(draft) : this.api.updateTemplate(id, draft);
+    this.saveSubscription = request
       .pipe(
         takeUntilDestroyed(this.destroyRef),
         finalize(() => {
@@ -148,27 +228,35 @@ export class TemplateCreate {
       )
       .subscribe({
         next: () => {
+          if (this.routeGeneration !== generation || this.routeId() !== id) return;
           this.saveConfirmed.set(true);
           void this.router.navigateByUrl('/templates').then(
             (navigated) => {
-              if (!navigated) this.showNavigationError();
+              if (!navigated && this.routeGeneration === generation) this.showNavigationError();
             },
-            () => this.showNavigationError(),
+            () => {
+              if (this.routeGeneration === generation) this.showNavigationError();
+            },
           );
         },
-        error: () =>
+        error: () => {
+          if (this.routeGeneration !== generation || this.routeId() !== id) return;
           this.saveErrorMessage.set(
-            'Could not confirm the template was saved. Check Templates before retrying; it may already be on the list.',
-          ),
+            this.isEditing()
+              ? 'Could not save this template. Your changes are still here.'
+              : 'Could not confirm the template was saved. Check Templates before retrying; it may already be on the list.',
+          );
+        },
       });
   }
 
   protected cancel(): void {
-    if (!this.canCancel()) return;
+    const current = this.state();
+    if (current.kind !== 'ready' || !this.canCancel()) return;
 
     this.clearPreview();
-    this.nameControl.setValue(this.openingDraft.name);
-    this.templateControl.setValue(this.openingDraft.template);
+    this.nameControl.setValue(current.detail.name);
+    this.templateControl.setValue(current.detail.template);
     this.nameControl.markAsPristine();
     this.nameControl.markAsUntouched();
     this.templateControl.markAsPristine();

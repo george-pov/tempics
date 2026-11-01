@@ -96,20 +96,19 @@ describe('Component Lab route', () => {
     ['Alert', 'app-alert[role="status"]'],
     ['Progress Bar', 'app-progress-bar [role="progressbar"]'],
     ['Confirm Dialog', 'app-confirm-dialog-lab app-button button'],
-  ] as const)(
-    'selects the %s example',
-    async (label, selector) => {
-      TestBed.configureTestingModule({ providers: [provideRouter(routes)] });
-      const harness = await RouterTestingHarness.create('/component-lab');
-      const item = Array.from(
-        harness.routeNativeElement!.querySelectorAll<HTMLButtonElement>('nav[aria-label="Components"] button'),
-      ).find((button) => button.textContent?.trim() === label);
-      if (!item) throw new Error(`Missing Lab entry ${label}`);
-      item.click();
-      harness.detectChanges();
-      expect(harness.routeNativeElement?.querySelector(selector)).not.toBeNull();
-    },
-  );
+  ] as const)('selects the %s example', async (label, selector) => {
+    TestBed.configureTestingModule({ providers: [provideRouter(routes)] });
+    const harness = await RouterTestingHarness.create('/component-lab');
+    const item = Array.from(
+      harness.routeNativeElement!.querySelectorAll<HTMLButtonElement>(
+        'nav[aria-label="Components"] button',
+      ),
+    ).find((button) => button.textContent?.trim() === label);
+    if (!item) throw new Error(`Missing Lab entry ${label}`);
+    item.click();
+    harness.detectChanges();
+    expect(harness.routeNativeElement?.querySelector(selector)).not.toBeNull();
+  });
 });
 
 describe('Templates route', () => {
@@ -198,7 +197,7 @@ describe('Templates route', () => {
       addLink!.click();
       await fixture.whenStable();
 
-      const name = main.querySelector<HTMLInputElement>('app-template-create app-input input')!;
+      const name = main.querySelector<HTMLInputElement>('app-template-editor app-input input')!;
       name.value = '  Launch invitation  ';
       name.dispatchEvent(new Event('input', { bubbles: true }));
       await fixture.whenStable();
@@ -219,6 +218,74 @@ describe('Templates route', () => {
       });
       await fixture.whenStable();
       expect(main.querySelector('app-templates')?.textContent).toContain('Launch invitation');
+      http.verify();
+    } finally {
+      fixture.destroy();
+    }
+  });
+
+  it('loads and updates one template through Edit, then refreshes the list', async () => {
+    const config = CONFIG_FIXTURE;
+    TestBed.configureTestingModule({
+      imports: [App],
+      providers: [...createAppConfig(config).providers, provideHttpClientTesting()],
+    });
+    await TestBed.inject(AuthSession).signIn();
+    const fixture = TestBed.createComponent(App);
+    try {
+      await fixture.whenStable();
+      await TestBed.inject(Router).navigateByUrl('/templates');
+      await fixture.whenStable();
+      const root: HTMLElement = fixture.nativeElement;
+      const http = TestBed.inject(HttpTestingController);
+      const id = '22222222-2222-2222-2222-222222222222';
+      http.expectOne(`${config.apiBaseUrl}/templates`).flush({
+        items: [{ id, name: 'Event invitation' }],
+      });
+      await fixture.whenStable();
+
+      root
+        .querySelector<HTMLAnchorElement>(`app-templates a[href="/templates/${id}/edit"]`)!
+        .click();
+      await fixture.whenStable();
+      const detail = http.expectOne(`${config.apiBaseUrl}/templates/${id}`);
+      expect(detail.request.method).toBe('GET');
+      expect(detail.request.headers.get('Authorization')).toBe('Bearer fixture-access-token');
+      detail.flush({ id, name: 'Event invitation', template: '<Border />\n' });
+      await fixture.whenStable();
+
+      const name = root.querySelector<HTMLInputElement>('app-template-editor app-input input')!;
+      const markup = root.querySelector<HTMLTextAreaElement>(
+        'app-template-editor app-input textarea',
+      )!;
+      expect(name.value).toBe('Event invitation');
+      expect(markup.value).toBe('<Border />\n');
+      name.value = '  Updated invitation  ';
+      name.dispatchEvent(new Event('input', { bubbles: true }));
+      markup.value = '<Grid />\n  ';
+      markup.dispatchEvent(new Event('input', { bubbles: true }));
+      await fixture.whenStable();
+      const save = Array.from(
+        root.querySelectorAll<HTMLButtonElement>('app-template-editor button'),
+      ).find((button) => button.textContent?.trim() === 'Save template');
+      save!.click();
+      await fixture.whenStable();
+
+      const update = http.expectOne(`${config.apiBaseUrl}/templates/${id}`);
+      expect(update.request.method).toBe('PUT');
+      expect(update.request.headers.get('Authorization')).toBe('Bearer fixture-access-token');
+      expect(update.request.body).toEqual({
+        name: 'Updated invitation',
+        template: '<Grid />\n  ',
+      });
+      update.flush(null, { status: 204, statusText: 'No Content' });
+      await fixture.whenStable();
+
+      const refreshed = http.expectOne(`${config.apiBaseUrl}/templates`);
+      expect(refreshed.request.headers.get('Authorization')).toBe('Bearer fixture-access-token');
+      refreshed.flush({ items: [{ id, name: 'Updated invitation' }] });
+      await fixture.whenStable();
+      expect(root.querySelector('app-templates')?.textContent).toContain('Updated invitation');
       http.verify();
     } finally {
       fixture.destroy();
@@ -249,13 +316,16 @@ describe('Templates route', () => {
       });
       await fixture.whenStable();
 
-      const actions = root.querySelectorAll<HTMLButtonElement>('app-templates li button[aria-label="Delete Same name"]');
+      const actions = root.querySelectorAll<HTMLButtonElement>(
+        'app-templates li button[aria-label="Delete Same name"]',
+      );
       actions[1].click();
       await fixture.whenStable();
       http.expectNone((request) => request.method === 'DELETE');
 
-      const confirm = Array.from(document.querySelectorAll<HTMLButtonElement>('mat-dialog-container button'))
-        .find((button) => button.textContent?.trim() === 'Delete template');
+      const confirm = Array.from(
+        document.querySelectorAll<HTMLButtonElement>('mat-dialog-container button'),
+      ).find((button) => button.textContent?.trim() === 'Delete template');
       confirm!.click();
       await fixture.whenStable();
       const deletion = await vi.waitFor(() =>
@@ -271,7 +341,7 @@ describe('Templates route', () => {
 });
 
 describe('Home route', () => {
-  it.each(['/', '/image-generator', '/templates', '/templates/new'])(
+  it.each(['/', '/image-generator', '/templates', '/templates/new', '/templates/one/edit'])(
     'starts a fresh app at the sign-in page when opening %s',
     async (url) => {
       TestBed.configureTestingModule({
@@ -321,7 +391,9 @@ describe('Application layout', () => {
     await router.navigateByUrl('/image-generator');
     await fixture!.whenStable();
     expect(
-      root.querySelector('nav[aria-label="Primary navigation"] [aria-current="page"]')?.textContent?.trim(),
+      root
+        .querySelector('nav[aria-label="Primary navigation"] [aria-current="page"]')
+        ?.textContent?.trim(),
     ).toBe('Image Generator');
   });
 

@@ -2,9 +2,9 @@ import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { map, Observable } from 'rxjs';
 import { CONFIG } from '../../config/config-token';
-import type { CreateTemplateRequest } from './create-template-request';
-import type { CreateTemplateResponse } from './create-template-response';
+import type { TemplateDetail } from './template-detail';
 import type { TemplateListResponse } from './template-list-response';
+import type { TemplateSummary } from './template-summary';
 
 @Injectable({ providedIn: 'root' })
 export class TemplateApi {
@@ -15,11 +15,24 @@ export class TemplateApi {
     return this.http.get<TemplateListResponse>(`${this.config.apiBaseUrl}/templates`);
   }
 
-  createTemplate(request: CreateTemplateRequest): Observable<CreateTemplateResponse> {
+  getTemplate(id: string): Observable<TemplateDetail> {
+    return this.http.get<TemplateDetail>(
+      `${this.config.apiBaseUrl}/templates/${encodeURIComponent(id)}`,
+    );
+  }
+
+  createTemplate(request: Pick<TemplateDetail, 'name' | 'template'>): Observable<TemplateSummary> {
     return this.http
-      .post<CreateTemplateResponse>(`${this.config.apiBaseUrl}/templates`, request, {
-        observe: 'response',
-      })
+      .post<TemplateSummary>(
+        `${this.config.apiBaseUrl}/templates`,
+        {
+          name: request.name,
+          template: request.template,
+        },
+        {
+          observe: 'response',
+        },
+      )
       .pipe(
         map((response) => {
           const body = response.body;
@@ -38,9 +51,26 @@ export class TemplateApi {
       );
   }
 
+  updateTemplate(id: string, request: Pick<TemplateDetail, 'name' | 'template'>): Observable<void> {
+    return this.http
+      .put(
+        `${this.config.apiBaseUrl}/templates/${encodeURIComponent(id)}`,
+        {
+          name: request.name,
+          template: request.template,
+        },
+        {
+          responseType: 'text',
+        },
+      )
+      .pipe(map(() => undefined));
+  }
+
   deleteTemplate(id: string): Observable<void> {
     return this.http
-      .delete(`${this.config.apiBaseUrl}/templates/${encodeURIComponent(id)}`, { responseType: 'text' })
+      .delete(`${this.config.apiBaseUrl}/templates/${encodeURIComponent(id)}`, {
+        responseType: 'text',
+      })
       .pipe(map(() => undefined));
   }
 }

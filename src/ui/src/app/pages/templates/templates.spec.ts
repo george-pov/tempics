@@ -3,7 +3,8 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { Subject } from 'rxjs';
 import { TemplateApi } from '../../shared/api/templates/template-api';
-import { type TemplateListItemResponse, type TemplateListResponse } from '../../shared/api/templates/template-list-response';
+import type { TemplateListResponse } from '../../shared/api/templates/template-list-response';
+import type { TemplateSummary } from '../../shared/api/templates/template-summary';
 import { ConfirmDialogService } from '../../shared/components/confirm-dialog/confirm-dialog-service';
 import { Templates } from './templates';
 
@@ -16,7 +17,7 @@ describe('Templates', () => {
   let deletions: Subject<void>[];
   let deleteTemplate: ReturnType<typeof vi.fn>;
 
-  const items: TemplateListItemResponse[] = [
+  const items: TemplateSummary[] = [
     { id: 'first', name: 'Same name' },
     { id: 'second', name: 'Same name' },
   ];
@@ -64,10 +65,16 @@ describe('Templates', () => {
   }
 
   function deleteButtons(): HTMLButtonElement[] {
-    return Array.from(page().querySelectorAll<HTMLButtonElement>('li button[aria-label^="Delete "]'));
+    return Array.from(
+      page().querySelectorAll<HTMLButtonElement>('li button[aria-label^="Delete "]'),
+    );
   }
 
-  function load(itemsToShow: readonly TemplateListItemResponse[] = items): void {
+  function editLinks(): HTMLAnchorElement[] {
+    return Array.from(page().querySelectorAll<HTMLAnchorElement>('li a[aria-label^="Edit "]'));
+  }
+
+  function load(itemsToShow: readonly TemplateSummary[] = items): void {
     responses[0].next({ items: itemsToShow });
     fixture.detectChanges();
   }
@@ -112,6 +119,23 @@ describe('Templates', () => {
       'Delete Same name',
       'Delete Same name',
     ]);
+  });
+
+  it('links each duplicate-name row to its own editor with a distinct accessible name', () => {
+    load();
+    expect(editLinks().map((link) => link.getAttribute('href'))).toEqual([
+      '/templates/first/edit',
+      '/templates/second/edit',
+    ]);
+    expect(editLinks().map((link) => link.getAttribute('aria-label'))).toEqual([
+      'Edit Same name, ID first',
+      'Edit Same name, ID second',
+    ]);
+    expect(
+      editLinks().every(
+        (link) => link.querySelector('app-icon')?.getAttribute('aria-hidden') === 'true',
+      ),
+    ).toBe(true);
   });
 
   it('shows a useful empty state only after a successful empty response', () => {
@@ -225,7 +249,9 @@ describe('Templates', () => {
 
     expect(listTemplates).toHaveBeenCalledOnce();
     expect(names()).toEqual(['Same name', 'Same name']);
-    expect(page().querySelector('[role="alert"]')?.textContent).toContain('Could not delete the template.');
+    expect(page().querySelector('[role="alert"]')?.textContent).toContain(
+      'Could not delete the template.',
+    );
   });
 
   it('keeps a row after a failed delete and allows a deliberate retry without refreshing', () => {

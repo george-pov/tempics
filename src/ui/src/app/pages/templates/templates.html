@@ -17,7 +17,9 @@
   <header class="panel-heading">
     <h2 #listHeading id="templates-title" tabindex="-1">Your templates</h2>
     @if (current.kind === 'loaded') {
-      <p class="count">{{ current.items.length }} {{ current.items.length === 1 ? 'template' : 'templates' }}</p>
+      <p class="count">
+        {{ current.items.length }} {{ current.items.length === 1 ? 'template' : 'templates' }}
+      </p>
     }
   </header>
 
@@ -42,6 +44,13 @@
             <li>
               <span class="image-icon"><app-icon name="image" /></span>
               <span class="template-name">{{ template.name }}</span>
+              <a
+                class="edit-action"
+                [routerLink]="['/templates', template.id, 'edit']"
+                [attr.aria-label]="'Edit ' + template.name + ', ID ' + template.id"
+              >
+                <app-icon name="edit" />
+              </a>
               @if (deletion?.kind === 'deleting' && deletion.id === template.id) {
                 <span class="delete-progress" role="status">Deleting...</span>
               }

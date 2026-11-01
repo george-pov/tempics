@@ -31,7 +31,14 @@ export const routes: Routes = [
         title: 'Create Template | Tempics',
         canActivate: [signedInGuard],
         loadComponent: () =>
-          import('./pages/template-create/template-create').then((m) => m.TemplateCreate),
+          import('./pages/template-editor/template-editor').then((m) => m.TemplateEditor),
+      },
+      {
+        path: 'templates/:id/edit',
+        title: 'Edit Template | Tempics',
+        canActivate: [signedInGuard],
+        loadComponent: () =>
+          import('./pages/template-editor/template-editor').then((m) => m.TemplateEditor),
       },
       {
         path: 'templates',

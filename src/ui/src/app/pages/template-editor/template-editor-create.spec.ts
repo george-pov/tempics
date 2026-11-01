@@ -1,17 +1,19 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { provideRouter, Router } from '@angular/router';
-import { Subject } from 'rxjs';
+import { ActivatedRoute, convertToParamMap, provideRouter, Router } from '@angular/router';
+import { of, Subject } from 'rxjs';
 import { ImageRenderApi } from '../../shared/api/image-render/image-render-api';
 import { TemplateApi } from '../../shared/api/templates/template-api';
-import type { CreateTemplateResponse } from '../../shared/api/templates/create-template-response';
-import { INITIAL_TEMPLATE_DRAFT } from './template-create-draft';
-import { TemplateCreate } from './template-create';
+import type { TemplateSummary } from '../../shared/api/templates/template-summary';
+import { INITIAL_TEMPLATE_DRAFT } from './template-editor-draft';
+import { TemplateEditor } from './template-editor';
 
-describe('TemplateCreate', () => {
-  let fixture: ComponentFixture<TemplateCreate>;
-  let response: Subject<CreateTemplateResponse>;
+describe('TemplateEditor create mode', () => {
+  let fixture: ComponentFixture<TemplateEditor>;
+  let response: Subject<TemplateSummary>;
   let previewResponse: Subject<Blob>;
   let createTemplate: ReturnType<typeof vi.fn>;
+  let getTemplate: ReturnType<typeof vi.fn>;
+  let updateTemplate: ReturnType<typeof vi.fn>;
   let renderPreview: ReturnType<typeof vi.fn>;
   let navigateByUrl: ReturnType<typeof vi.spyOn>;
   let createUrl: ReturnType<typeof vi.fn>;
@@ -21,9 +23,11 @@ describe('TemplateCreate', () => {
   const originalRevoke = Object.getOwnPropertyDescriptor(URL, 'revokeObjectURL');
 
   beforeEach(async () => {
-    response = new Subject<CreateTemplateResponse>();
+    response = new Subject<TemplateSummary>();
     previewResponse = new Subject<Blob>();
     createTemplate = vi.fn(() => response.asObservable());
+    getTemplate = vi.fn();
+    updateTemplate = vi.fn();
     renderPreview = vi.fn(() => previewResponse.asObservable());
     createUrl = vi.fn().mockReturnValueOnce('blob:first').mockReturnValueOnce('blob:second');
     revokeUrl = vi.fn();
@@ -40,12 +44,19 @@ describe('TemplateCreate', () => {
     TestBed.configureTestingModule({
       providers: [
         provideRouter([]),
-        { provide: TemplateApi, useValue: { createTemplate } },
+        {
+          provide: ActivatedRoute,
+          useValue: {
+            snapshot: { paramMap: convertToParamMap({}) },
+            paramMap: of(convertToParamMap({})),
+          },
+        },
+        { provide: TemplateApi, useValue: { createTemplate, getTemplate, updateTemplate } },
         { provide: ImageRenderApi, useValue: { renderPreview } },
       ],
     });
     navigateByUrl = vi.spyOn(TestBed.inject(Router), 'navigateByUrl').mockResolvedValue(true);
-    fixture = TestBed.createComponent(TemplateCreate);
+    fixture = TestBed.createComponent(TemplateEditor);
     await fixture.whenStable();
   });
 
@@ -82,6 +93,8 @@ describe('TemplateCreate', () => {
   it('opens with the default draft', () => {
     expect(nameField().value).toBe('Event invitation');
     expect(templateField().value).toBe(INITIAL_TEMPLATE_DRAFT.template);
+    expect(getTemplate).not.toHaveBeenCalled();
+    expect(updateTemplate).not.toHaveBeenCalled();
   });
 
   it('disables Cancel and Save for the unchanged draft', () => {
@@ -326,12 +339,15 @@ describe('TemplateCreate', () => {
     await edit(nameField(), '  Invitation updated  ');
     await edit(templateField(), axaml);
     button(/save template/i).click();
-    fixture.nativeElement.querySelector('form').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    fixture.nativeElement
+      .querySelector('form')
+      .dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
     await fixture.whenStable();
     expect(createTemplate).toHaveBeenCalledExactlyOnceWith({
       name: 'Invitation updated',
       template: axaml,
     });
+    expect(updateTemplate).not.toHaveBeenCalled();
   });
 
   it('locks actions while a save is pending', async () => {
@@ -358,7 +374,9 @@ describe('TemplateCreate', () => {
     response.error(new Error('private backend details'));
     await fixture.whenStable();
     expect(nameField().value).toBe('Changed');
-    expect(fixture.nativeElement.querySelector('[role="alert"]')?.textContent).toMatch(/check templates before retrying/i);
+    expect(fixture.nativeElement.querySelector('[role="alert"]')?.textContent).toMatch(
+      /check templates before retrying/i,
+    );
     expect(fixture.nativeElement.textContent).not.toContain('private backend details');
     expect(navigateByUrl).not.toHaveBeenCalled();
   });
@@ -384,7 +402,9 @@ describe('TemplateCreate', () => {
     );
     expect(button(/cancel/i).disabled).toBe(true);
     expect(button(/save template/i).disabled).toBe(true);
-    fixture.nativeElement.querySelector('form').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    fixture.nativeElement
+      .querySelector('form')
+      .dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
     expect(createTemplate).toHaveBeenCalledTimes(1);
   });
 

@@ -1,9 +1,7 @@
-export interface TemplateCreateDraft {
-  readonly name: string;
-  readonly template: string;
-}
+import type { TemplateDetail } from '../../shared/api/templates/template-detail';
 
-export const INITIAL_TEMPLATE_DRAFT: TemplateCreateDraft = Object.freeze({
+export const INITIAL_TEMPLATE_DRAFT: TemplateDetail = Object.freeze({
+  id: null,
   name: 'Event invitation',
   template: `<Border xmlns="https://github.com/avaloniaui"
         Width="1200" Height="630" Background="#FFFFFF">

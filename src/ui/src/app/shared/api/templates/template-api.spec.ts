@@ -3,10 +3,10 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 import { CONFIG } from '../../config/config-token';
 import { CONFIG_FIXTURE } from '../../config/config-fixture';
-import type { CreateTemplateRequest } from './create-template-request';
-import type { CreateTemplateResponse } from './create-template-response';
 import { TemplateApi } from './template-api';
+import type { TemplateDetail } from './template-detail';
 import type { TemplateListResponse } from './template-list-response';
+import type { TemplateSummary } from './template-summary';
 
 describe('TemplateApi', () => {
   const apiBaseUrl = 'https://api.example.test/prefix/api';
@@ -37,6 +37,14 @@ describe('TemplateApi', () => {
       statusText: 'OK',
     },
     {
+      operation: 'detail',
+      send: (client: TemplateApi) => client.getTemplate('id').subscribe(),
+      path: '/templates/id',
+      response: { id: 'id', name: 'Name', template: '<Border />' },
+      status: 200,
+      statusText: 'OK',
+    },
+    {
       operation: 'create',
       send: (client: TemplateApi) =>
         client.createTemplate({ name: 'Name', template: '<Border />' }).subscribe(),
@@ -46,6 +54,15 @@ describe('TemplateApi', () => {
       statusText: 'Created',
     },
     {
+      operation: 'update',
+      send: (client: TemplateApi) =>
+        client.updateTemplate('id', { name: 'Name', template: '<Border />' }).subscribe(),
+      path: '/templates/id',
+      response: null,
+      status: 204,
+      statusText: 'No Content',
+    },
+    {
       operation: 'delete',
       send: (client: TemplateApi) => client.deleteTemplate('id').subscribe(),
       path: '/templates/id',
@@ -53,7 +70,8 @@ describe('TemplateApi', () => {
       status: 204,
       statusText: 'No Content',
     },
-  ])('keeps $operation requests free of browser credentials and shared keys',
+  ])(
+    'keeps $operation requests free of browser credentials and shared keys',
     ({ send, path, response, status, statusText }) => {
       send(api);
       const request = http.expectOne(`${apiBaseUrl}${path}`);
@@ -83,16 +101,18 @@ describe('TemplateApi', () => {
 
   it('posts the exact create payload and returns a confirmed 201 body', () => {
     const receive = vi.fn();
-    const payload: CreateTemplateRequest = {
+    const detail: TemplateDetail = {
+      id: null,
       name: 'Event invitation',
       template: '<Border>  exact text  </Border>',
     };
-    api.createTemplate(payload).subscribe(receive);
+    api.createTemplate(detail).subscribe(receive);
     const request = http.expectOne(`${apiBaseUrl}/templates`);
     expect(request.request.method).toBe('POST');
-    expect(request.request.body).toEqual(payload);
+    expect(request.request.body).toEqual({ name: detail.name, template: detail.template });
+    expect(Object.keys(request.request.body)).toEqual(['name', 'template']);
 
-    const response: CreateTemplateResponse = {
+    const response: TemplateSummary = {
       id: '11111111-1111-1111-1111-111111111111',
       name: 'Event invitation',
     };
@@ -113,6 +133,61 @@ describe('TemplateApi', () => {
       statusText: status === 201 ? 'Created' : 'OK',
     });
     expect(reject).toHaveBeenCalledExactlyOnceWith(expect.any(Error));
+  });
+
+  it('gets one detail from the configured URL with the ID encoded as one segment', () => {
+    const receive = vi.fn();
+    const id = '11111111-1111-1111-1111-111111111111/?name=other#fragment';
+    api.getTemplate(id).subscribe(receive);
+    const request = http.expectOne(`${apiBaseUrl}/templates/${encodeURIComponent(id)}`);
+    expect(request.request.method).toBe('GET');
+    expect(request.request.body).toBeNull();
+
+    const detail: TemplateDetail = {
+      id,
+      name: 'Event invitation',
+      template: '<Border>  exact text  </Border>\n',
+    };
+    request.flush(detail);
+    expect(receive).toHaveBeenCalledExactlyOnceWith(detail);
+  });
+
+  it('passes a failed detail response to the caller', () => {
+    const reject = vi.fn();
+    api.getTemplate('id').subscribe({ error: reject });
+    http.expectOne(`${apiBaseUrl}/templates/id`).flush(null, {
+      status: 404,
+      statusText: 'Not Found',
+    });
+    expect(reject).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ status: 404 }));
+  });
+
+  it('puts both fields to one encoded ID and accepts a bodyless success', () => {
+    const receive = vi.fn();
+    const id = '11111111-1111-1111-1111-111111111111/?name=other#fragment';
+    const detail: TemplateDetail = {
+      id,
+      name: 'Event invitation',
+      template: '<Border>  exact text  </Border>\n',
+    };
+    api.updateTemplate(id, detail).subscribe(receive);
+    const request = http.expectOne(`${apiBaseUrl}/templates/${encodeURIComponent(id)}`);
+    expect(request.request.method).toBe('PUT');
+    expect(request.request.body).toEqual({ name: detail.name, template: detail.template });
+    expect(Object.keys(request.request.body)).toEqual(['name', 'template']);
+    expect(request.request.headers.has('If-Match')).toBe(false);
+    request.flush(null, { status: 204, statusText: 'No Content' });
+    expect(receive).toHaveBeenCalledExactlyOnceWith(undefined);
+  });
+
+  it('passes a failed update response to the caller', () => {
+    const reject = vi.fn();
+    api.updateTemplate('id', { name: 'Name', template: '<Border />' }).subscribe({ error: reject });
+    http.expectOne(`${apiBaseUrl}/templates/id`).flush(null, {
+      status: 503,
+      statusText: 'Service Unavailable',
+    });
+    expect(reject).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ status: 503 }));
   });
 
   it('deletes the encoded ID with a bodyless request and accepts 204', () => {

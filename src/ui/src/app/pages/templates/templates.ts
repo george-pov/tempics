@@ -1,8 +1,17 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, inject, signal, viewChild } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  DestroyRef,
+  ElementRef,
+  inject,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { RouterLink } from '@angular/router';
 import { Subscription, take } from 'rxjs';
 import { TemplateApi } from '../../shared/api/templates/template-api';
-import { type TemplateListItemResponse } from '../../shared/api/templates/template-list-response';
+import type { TemplateSummary } from '../../shared/api/templates/template-summary';
 import { Alert, type AlertVariant } from '../../shared/components/alert/alert';
 import { ButtonLink } from '../../shared/components/button-link/button-link';
 import { ConfirmDialogService } from '../../shared/components/confirm-dialog/confirm-dialog-service';
@@ -11,7 +20,7 @@ import { ProgressBar } from '../../shared/components/progress-bar/progress-bar';
 
 type TemplatesState =
   | { readonly kind: 'loading' }
-  | { readonly kind: 'loaded'; readonly items: readonly TemplateListItemResponse[] }
+  | { readonly kind: 'loaded'; readonly items: readonly TemplateSummary[] }
   | { readonly kind: 'error' };
 
 type DeleteFeedback = {
@@ -26,7 +35,7 @@ type DeleteState = {
 
 @Component({
   selector: 'app-templates',
-  imports: [Alert, ButtonLink, Icon, ProgressBar],
+  imports: [Alert, ButtonLink, Icon, ProgressBar, RouterLink],
   templateUrl: './templates.html',
   styleUrl: './templates.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -61,7 +70,7 @@ export class Templates {
       });
   }
 
-  protected confirmDelete(template: TemplateListItemResponse): void {
+  protected confirmDelete(template: TemplateSummary): void {
     if (this.deleteState() !== null) return;
 
     this.deleteState.set({ kind: 'confirming', id: template.id });

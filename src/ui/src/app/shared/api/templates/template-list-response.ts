@@ -1,8 +1,5 @@
-export interface TemplateListItemResponse {
-  readonly id: string;
-  readonly name: string;
-}
+import type { TemplateSummary } from './template-summary';
 
 export interface TemplateListResponse {
-  readonly items: readonly TemplateListItemResponse[];
+  readonly items: readonly TemplateSummary[];
 }
