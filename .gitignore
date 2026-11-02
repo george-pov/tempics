@@ -34,3 +34,4 @@ packages/
 /src/ui/.playwright-cli
 /.playwright-cli/
 /output/
+/.angular
